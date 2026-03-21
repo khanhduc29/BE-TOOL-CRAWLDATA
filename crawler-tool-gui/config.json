@@ -1,0 +1,86 @@
+{
+  "api_base_url": "https://be-tool.onrender.com",
+  "log_dir": "./logs",
+  "tools": {
+    "google_maps": {
+      "label": "Google Maps",
+      "threads": 1,
+      "enabled": true,
+      "poll_interval": 50,
+      "icon": "🗺️",
+      "color": "#4285F4",
+      "worker_type": "node",
+      "worker_path": "../google-maps-crawler/dist/index.js"
+    },
+    "instagram": {
+      "label": "Instagram",
+      "threads": 1,
+      "enabled": true,
+      "poll_interval": 50,
+      "icon": "📷",
+      "color": "#E1306C",
+      "worker_type": "python",
+      "worker_path": "../instagram-crawler/main.py"
+    },
+    "tiktok": {
+      "label": "TikTok",
+      "threads": 1,
+      "enabled": true,
+      "poll_interval": 50,
+      "icon": "🎵",
+      "color": "#00F2EA",
+      "worker_type": "python",
+      "worker_path": "../tiktok-crawler/main.py"
+    },
+    "youtube": {
+      "label": "YouTube",
+      "threads": 1,
+      "enabled": true,
+      "poll_interval": 50,
+      "icon": "▶️",
+      "color": "#FF0000",
+      "worker_type": "python",
+      "worker_path": "../youtube-crawler/main.py"
+    },
+    "pinterest": {
+      "label": "Pinterest",
+      "threads": 1,
+      "enabled": true,
+      "poll_interval": 50,
+      "icon": "📌",
+      "color": "#E60023",
+      "worker_type": "python",
+      "worker_path": "../pinterest-crawler/main.py"
+    },
+    "twitter": {
+      "label": "X (Twitter)",
+      "threads": 1,
+      "enabled": true,
+      "poll_interval": 50,
+      "icon": "𝕏",
+      "color": "#1DA1F2",
+      "worker_type": "python",
+      "worker_path": "../twitter-crawler/main.py"
+    },
+    "chplay": {
+      "label": "CH Play",
+      "threads": 2,
+      "enabled": false,
+      "poll_interval": 30,
+      "icon": "🛒",
+      "color": "#01875F",
+      "worker_type": "python",
+      "worker_path": "./workers/chplay_worker.py"
+    },
+    "appstore": {
+      "label": "App Store",
+      "threads": 2,
+      "enabled": false,
+      "poll_interval": 30,
+      "icon": "🍎",
+      "color": "#0D96F6",
+      "worker_type": "python",
+      "worker_path": "./workers/appstore_worker.py"
+    }
+  }
+}
