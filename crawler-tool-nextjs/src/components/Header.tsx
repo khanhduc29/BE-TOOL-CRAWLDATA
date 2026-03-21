@@ -23,6 +23,7 @@ export default function Header() {
               ⬡ Tools
             </button>
             <Link href="/">Trang chủ</Link>
+            <Link href="/dashboard">📊 Dashboard</Link>
             <Link href="/settings/accounts">Cài đặt</Link>
           </nav>
         </div>
