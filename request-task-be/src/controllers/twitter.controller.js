@@ -1,0 +1,170 @@
+import { createTwitterScan } from "../services/twitter.service.js";
+import TwitterTask from "../models/TwitterTask.model.js";
+import TwitterRequest from "../models/TwitterRequest.model.js";
+import { syncRequestStatus } from "../utils/syncRequestStatus.js";
+
+export async function createTwitterScanController(req, res) {
+  try {
+    const request = await createTwitterScan(req.body);
+    res.json({
+      success: true,
+      data: request,
+    });
+  } catch (err) {
+    res.status(400).json({
+      success: false,
+      message: err.message,
+    });
+  }
+}
+
+export async function getPendingTwitterTask(req, res) {
+  try {
+    const task = await TwitterTask.findOneAndUpdate(
+      { status: "pending" },
+      { status: "running" },
+      {
+        sort: { createdAt: 1 },
+        new: true,
+      }
+    );
+
+    if (!task) {
+      return res.json({
+        success: true,
+        data: null,
+        message: "No pending Twitter task",
+      });
+    }
+
+    res.json({
+      success: true,
+      data: task,
+    });
+  } catch (err) {
+    res.status(500).json({
+      success: false,
+      message: err.message,
+    });
+  }
+}
+
+export async function updateTwitterTask(req, res) {
+  try {
+    const { id } = req.params;
+    const { status, result, error_message } = req.body;
+
+    console.log(`📝 Twitter updateTask: id=${id} status=${status} error_message=${error_message} result_type=${typeof result}`);
+
+    if (!["success", "error", "running"].includes(status)) {
+      return res.status(400).json({
+        success: false,
+        message: "status must be success, error, or running",
+      });
+    }
+
+    const updateData = {
+      status,
+      updatedAt: new Date(),
+    };
+
+    if (status === "success") {
+      updateData.result = result;
+    }
+
+    if (status === "error") {
+      updateData.error_message = error_message || result?.error || "Unknown error";
+      if (result) updateData.result = result;
+    }
+
+    const task = await TwitterTask.findByIdAndUpdate(
+      id,
+      updateData,
+      { new: true }
+    );
+
+    if (!task) {
+      return res.status(404).json({
+        success: false,
+        message: "Twitter task not found",
+      });
+    }
+
+    res.json({
+      success: true,
+      data: task,
+    });
+
+    // Sync parent request status
+    await syncRequestStatus(TwitterTask, TwitterRequest, "request_id", task.request_id);
+  } catch (err) {
+    res.status(500).json({
+      success: false,
+      message: err.message,
+    });
+  }
+}
+
+/**
+ * GET latest Twitter task
+ * /api/twitter/task/latest
+ * /api/twitter/task/latest?scan_type=posts
+ * /api/twitter/task/latest?status=success
+ */
+export async function getLatestTwitterTask(req, res) {
+  try {
+    const { scan_type, status } = req.query;
+
+    const query = {};
+    if (scan_type) query.scan_type = scan_type;
+    if (status) query.status = status;
+
+    const task = await TwitterTask.findOne(query)
+      .sort({ createdAt: -1 })
+      .lean();
+
+    return res.json({
+      success: true,
+      data: task || null,
+    });
+  } catch (err) {
+    return res.status(500).json({
+      success: false,
+      message: err.message,
+    });
+  }
+}
+
+/**
+ * GET all Twitter tasks (for history)
+ * /api/twitter/tasks
+ * /api/twitter/tasks?scan_type=posts&status=success&limit=20&skip=0
+ */
+export async function getAllTwitterTasks(req, res) {
+  try {
+    const { scan_type, status, limit = 50, skip = 0 } = req.query;
+
+    const query = {};
+    if (scan_type) query.scan_type = scan_type;
+    if (status) query.status = status;
+
+    const tasks = await TwitterTask.find(query)
+      .sort({ createdAt: -1 })
+      .skip(Number(skip))
+      .limit(Number(limit))
+      .lean();
+
+    const total = await TwitterTask.countDocuments(query);
+
+    return res.json({
+      success: true,
+      data: tasks,
+      total,
+    });
+  } catch (err) {
+    return res.status(500).json({
+      success: false,
+      message: err.message,
+    });
+  }
+}
