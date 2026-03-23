@@ -1,7 +1,7 @@
 import axios from "axios";
 import { CrawlTask } from "../types/crawlTask";
 
-const API_BASE = "http://localhost:3000/api";
+const API_BASE = (process.env.API_BASE_URL || "http://localhost:3000") + "/api";
 
 /**
  * Lấy nhiều Google Map task pending từ BE (cho parallel processing)
