@@ -28,6 +28,12 @@ const YouTubeTaskSchema = new mongoose.Schema(
       type: String,
       default: null,
     },
+
+    assigned_worker: {
+      type: String,
+      default: null,
+      index: true,
+    },
   },
   {
     timestamps: true,

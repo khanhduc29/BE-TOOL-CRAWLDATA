@@ -35,13 +35,16 @@ class WorkerThread:
     """Đại diện cho 1 thread chạy worker process."""
 
     def __init__(self, tool_name: str, thread_id: int, worker_type: str,
-                 worker_path: str, logger: ToolLogger, api_base_url: str = "http://localhost:3000"):
+                 worker_path: str, logger: ToolLogger, api_base_url: str = "http://localhost:3000",
+                 worker_id: str = "", extra_env: dict = None):
         self.tool_name = tool_name
         self.thread_id = thread_id
         self.worker_type = worker_type
         self.worker_path = worker_path
         self.logger = logger
         self.api_base_url = api_base_url
+        self.worker_id = worker_id
+        self.extra_env = extra_env or {}
 
         self.process: Optional[subprocess.Popen] = None
         self._thread: Optional[threading.Thread] = None
@@ -87,6 +90,15 @@ class WorkerThread:
             env = os.environ.copy()
             env["PYTHONIOENCODING"] = "utf-8"
             env["API_BASE_URL"] = self.api_base_url
+
+            # Pass worker_id for multi-server task assignment
+            actual_worker_id = self.worker_id or f"{self.tool_name}-{self.thread_id}"
+            env["WORKER_ID"] = actual_worker_id
+
+            # Pass extra env (e.g. YOUTUBE_API_KEY)
+            for k, v in self.extra_env.items():
+                if v:
+                    env[k] = v
 
             if self.worker_type == "python":
                 if getattr(sys, 'frozen', False):
@@ -193,7 +205,14 @@ class ToolWorkerManager:
 
         self.logger.success(f"Starting {self.max_threads} thread(s)...")
 
+        worker_id = self.config.get("worker_id", "")
+        extra_env = {}
+        if self.config.get("api_key"):
+            extra_env["YOUTUBE_API_KEY"] = self.config["api_key"]
+
         for i in range(self.max_threads):
+            # Auto-generate worker_id if not set: tool_name-thread_id
+            wid = worker_id or f"{self.tool_name}-{i + 1}"
             wt = WorkerThread(
                 tool_name=self.tool_name,
                 thread_id=i + 1,
@@ -201,6 +220,8 @@ class ToolWorkerManager:
                 worker_path=worker_path,
                 logger=self.logger,
                 api_base_url=api_base_url,
+                worker_id=wid,
+                extra_env=extra_env,
             )
             wt.start()
             self.threads.append(wt)

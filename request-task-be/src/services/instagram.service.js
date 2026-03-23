@@ -1,6 +1,6 @@
 import InstagramRequest from "../models/InstagramRequest.model.js";
 import InstagramTask from "../models/InstagramTask.model.js";
-import { addTaskToQueue } from "./queue.service.js";
+import { assignWorkersRoundRobin } from "../utils/assignWorker.js";
 
 /**
  * CREATE SCAN
@@ -25,10 +25,8 @@ export async function createInstagramScan(data) {
     },
   }));
 
+  await assignWorkersRoundRobin("instagram", tasks);
   const createdTasks = await InstagramTask.insertMany(tasks);
-  for (const task of createdTasks) {
-    addTaskToQueue("instagram", { taskId: task._id.toString(), scan_type: task.scan_type, input: task.input }).catch(() => {});
-  }
 
   request.total_tasks = tasks.length;
   await request.save();
@@ -39,10 +37,11 @@ export async function createInstagramScan(data) {
 /**
  * GET PENDING TASK
  */
-export async function getPendingInstagramTasks(limit = 5) {
-  return InstagramTask.find({
-    status: "pending",
-  })
+export async function getPendingInstagramTasks(limit = 5, worker_id = null) {
+  const query = { status: "pending" };
+  if (worker_id) query.assigned_worker = worker_id;
+
+  return InstagramTask.find(query)
     .sort({ createdAt: 1 })
     .limit(limit);
 }

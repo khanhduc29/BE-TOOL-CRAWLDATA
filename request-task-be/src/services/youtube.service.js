@@ -1,6 +1,6 @@
 import YouTubeRequest from "../models/YouTubeRequest.model.js";
 import YouTubeTask from "../models/YouTubeTask.model.js";
-import { addTaskToQueue } from "./queue.service.js";
+import { assignWorkersRoundRobin } from "../utils/assignWorker.js";
 
 export async function createYouTubeScan(data) {
   const { scan_type } = data;
@@ -61,10 +61,8 @@ export async function createYouTubeScan(data) {
   }
 
   // 3️⃣ Insert task
+  await assignWorkersRoundRobin("youtube", tasks);
   const createdTasks = await YouTubeTask.insertMany(tasks);
-  for (const task of createdTasks) {
-    addTaskToQueue("youtube", { taskId: task._id.toString(), scan_type: task.scan_type, input: task.input }).catch(() => {});
-  }
 
   request.total_tasks = tasks.length;
   await request.save();

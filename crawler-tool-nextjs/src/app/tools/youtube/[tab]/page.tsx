@@ -61,6 +61,7 @@ const TABS = [
   { key: "channels", label: "📺 Kênh", scanType: "channels" },
   { key: "videos", label: "🎬 Video", scanType: "videos" },
   { key: "comments", label: "💬 Bình luận", scanType: "video_comments" },
+  { key: "jobs", label: "📋 Lịch sử", scanType: "all" },
 ];
 
 export default function YouTubeToolPage() {
@@ -76,6 +77,14 @@ export default function YouTubeToolPage() {
   const [videoUrl, setVideoUrl] = useState("");
   const [commentLimit, setCommentLimit] = useState(100);
   const [region, setRegion] = useState("VN");
+
+  // Jobs tab
+  const [jobsList, setJobsList] = useState<any[]>([]);
+  const [jobsTotal, setJobsTotal] = useState(0);
+  const [jobsLoading, setJobsLoading] = useState(false);
+  const [jobsPage, setJobsPage] = useState(1);
+  const [jobsLimit, setJobsLimit] = useState(20);
+  const [selectedJob, setSelectedJob] = useState<any>(null);
 
   // UI
   const [loading, setLoading] = useState(false);
@@ -110,7 +119,25 @@ export default function YouTubeToolPage() {
     }, 3000);
   }, []);
 
+  // Load jobs history
+  const loadJobs = useCallback(async (pg = 1, lim = 20) => {
+    setJobsLoading(true);
+    try {
+      const skip = (pg - 1) * lim;
+      const res = await fetch(`${API}/youtube/tasks?limit=${lim}&skip=${skip}`);
+      if (res.ok) {
+        const json = await res.json();
+        setJobsList(json.data || []);
+        setJobsTotal(json.total || 0);
+      }
+    } catch { /* ignore */ } finally { setJobsLoading(false); }
+  }, []);
+
   useEffect(() => {
+    if (tab === "jobs") {
+      loadJobs(jobsPage, jobsLimit);
+      return;
+    }
     stopPolling(); setResults([]); setTaskStatus("idle"); setErrorMsg(""); setPage(1);
     (async () => {
       try {
@@ -134,7 +161,7 @@ export default function YouTubeToolPage() {
       } catch { /* ignore */ }
     })();
     return () => stopPolling();
-  }, [scanType, startPolling]);
+  }, [scanType, startPolling, tab, loadJobs]);
 
   // ===== SUBMIT =====
   const handleScan = async () => {
@@ -223,7 +250,161 @@ export default function YouTubeToolPage() {
         ))}
       </div>
 
+      {/* JOBS TAB — full width */}
+      {tab === "jobs" && (
+        <div style={{ padding: "0 4px" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+            <h2 style={{ margin: 0, fontSize: 18, color: "#F1F5F9" }}>📋 Lịch sử Jobs ({jobsTotal})</h2>
+            <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+              <select value={jobsLimit} onChange={e => { const l = Number(e.target.value); setJobsLimit(l); setJobsPage(1); loadJobs(1, l); }} style={{ padding: "4px 8px", borderRadius: 6, border: "1px solid rgba(148,163,184,0.3)", background: "rgba(15,23,42,0.8)", color: "#F1F5F9", fontSize: 12 }}>
+                <option value={10}>10 / trang</option>
+                <option value={20}>20 / trang</option>
+                <option value={50}>50 / trang</option>
+                <option value={100}>100 / trang</option>
+              </select>
+              <button onClick={() => {
+                if (!jobsList.length) return;
+                const rows = jobsList.map(j => ({ id: j._id, scan_type: j.scan_type, status: j.status, worker: j.assigned_worker || "", result_count: Array.isArray(j.result) ? j.result.length : 0, created: j.createdAt, updated: j.updatedAt, error: j.error_message || "" }));
+                exportCSV(rows, "jobs-history");
+              }} disabled={!jobsList.length} style={{ padding: "6px 12px", borderRadius: 8, border: "1px solid rgba(34,197,94,0.3)", background: "rgba(34,197,94,0.1)", color: "#4ade80", cursor: "pointer", fontSize: 12, fontWeight: 600 }}>📥 CSV</button>
+              <button onClick={() => {
+                if (!jobsList.length) return;
+                exportJSON(jobsList, "jobs-history");
+              }} disabled={!jobsList.length} style={{ padding: "6px 12px", borderRadius: 8, border: "1px solid rgba(59,130,246,0.3)", background: "rgba(59,130,246,0.1)", color: "#60a5fa", cursor: "pointer", fontSize: 12, fontWeight: 600 }}>📥 JSON</button>
+              <button onClick={() => loadJobs(jobsPage, jobsLimit)} disabled={jobsLoading} style={{ padding: "6px 16px", borderRadius: 8, border: "1px solid rgba(239,68,68,0.3)", background: "rgba(239,68,68,0.1)", color: "#EF4444", cursor: "pointer", fontSize: 13, fontWeight: 600 }}>
+                {jobsLoading ? "⏳" : "🔄"} Refresh
+              </button>
+            </div>
+          </div>
+          {jobsLoading ? (
+            <div style={{ textAlign: "center", padding: "2rem", color: "#64748B" }}>⏳ Đang tải...</div>
+          ) : (
+            <table className="result-table">
+              <thead>
+                <tr><th>#</th><th>ID</th><th>Scan Type</th><th>Status</th><th>Worker</th><th>Kết quả</th><th>Ngày tạo</th></tr>
+              </thead>
+              <tbody>
+                {jobsList.map((job: any, i: number) => (
+                  <tr key={job._id || i} onClick={() => setSelectedJob(job)} style={{ cursor: "pointer" }} title="Bấm để xem chi tiết">
+                    <td>{(jobsPage - 1) * jobsLimit + i + 1}</td>
+                    <td style={{ fontSize: 11, fontFamily: "monospace", color: "#64748B" }}>{job._id?.slice(-8)}</td>
+                    <td><span style={{ padding: "2px 8px", borderRadius: 12, fontSize: 11, background: "rgba(239,68,68,0.1)", color: "#fca5a5" }}>{job.scan_type}</span></td>
+                    <td>
+                      <span style={{
+                        padding: "2px 10px", borderRadius: 12, fontSize: 11, fontWeight: 600,
+                        background: job.status === "success" ? "rgba(34,197,94,0.15)" : job.status === "error" ? "rgba(239,68,68,0.15)" : job.status === "running" ? "rgba(59,130,246,0.15)" : "rgba(251,191,36,0.15)",
+                        color: job.status === "success" ? "#4ade80" : job.status === "error" ? "#f87171" : job.status === "running" ? "#60a5fa" : "#fbbf24",
+                      }}>{job.status}</span>
+                    </td>
+                    <td style={{ fontSize: 11, color: "#94A3B8" }}>{job.assigned_worker || "—"}</td>
+                    <td>{Array.isArray(job.result) ? job.result.length : (job.result ? "✓" : "—")}</td>
+                    <td style={{ fontSize: 12, color: "#64748B", whiteSpace: "nowrap" }}>{job.createdAt ? new Date(job.createdAt).toLocaleString() : "—"}</td>
+                  </tr>
+                ))}
+                {jobsList.length === 0 && (
+                  <tr><td colSpan={7} style={{ textAlign: "center", padding: "2rem", color: "#64748B" }}>Chưa có job nào</td></tr>
+                )}
+              </tbody>
+            </table>
+          )}
+          {/* Pagination */}
+          {jobsTotal > jobsLimit && (
+            <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: 12, marginTop: 16 }}>
+              <button disabled={jobsPage <= 1} onClick={() => { const p = jobsPage - 1; setJobsPage(p); loadJobs(p, jobsLimit); }} style={{ padding: "6px 14px", borderRadius: 8, border: "1px solid rgba(148,163,184,0.2)", background: jobsPage <= 1 ? "rgba(30,41,59,0.3)" : "rgba(30,41,59,0.8)", color: jobsPage <= 1 ? "#475569" : "#F1F5F9", cursor: jobsPage <= 1 ? "not-allowed" : "pointer", fontSize: 13 }}>← Trước</button>
+              <span style={{ fontSize: 13, color: "#94A3B8" }}>Trang {jobsPage} / {Math.ceil(jobsTotal / jobsLimit)}</span>
+              <button disabled={jobsPage >= Math.ceil(jobsTotal / jobsLimit)} onClick={() => { const p = jobsPage + 1; setJobsPage(p); loadJobs(p, jobsLimit); }} style={{ padding: "6px 14px", borderRadius: 8, border: "1px solid rgba(148,163,184,0.2)", background: jobsPage >= Math.ceil(jobsTotal / jobsLimit) ? "rgba(30,41,59,0.3)" : "rgba(30,41,59,0.8)", color: jobsPage >= Math.ceil(jobsTotal / jobsLimit) ? "#475569" : "#F1F5F9", cursor: jobsPage >= Math.ceil(jobsTotal / jobsLimit) ? "not-allowed" : "pointer", fontSize: 13 }}>Sau →</button>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* JOB DETAIL MODAL */}
+      {selectedJob && (
+        <div style={{ position: "fixed", inset: 0, zIndex: 1000, background: "rgba(0,0,0,0.6)", display: "flex", alignItems: "center", justifyContent: "center" }} onClick={() => setSelectedJob(null)}>
+          <div onClick={e => e.stopPropagation()} style={{ background: "#1E293B", borderRadius: 16, padding: 24, maxWidth: 800, width: "90%", maxHeight: "85vh", overflow: "auto", border: "1px solid rgba(148,163,184,0.15)" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+              <h3 style={{ margin: 0, color: "#F1F5F9", fontSize: 16 }}>📋 Chi tiết Job</h3>
+              <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                {Array.isArray(selectedJob.result) && selectedJob.result.length > 0 && (
+                  <>
+                    <button onClick={() => exportCSV(selectedJob.result, `job-${selectedJob._id?.slice(-8)}`)} style={{ padding: "4px 10px", borderRadius: 6, border: "1px solid rgba(34,197,94,0.3)", background: "rgba(34,197,94,0.1)", color: "#4ade80", cursor: "pointer", fontSize: 11, fontWeight: 600 }}>📥 CSV</button>
+                    <button onClick={() => exportJSON(selectedJob.result, `job-${selectedJob._id?.slice(-8)}`)} style={{ padding: "4px 10px", borderRadius: 6, border: "1px solid rgba(59,130,246,0.3)", background: "rgba(59,130,246,0.1)", color: "#60a5fa", cursor: "pointer", fontSize: 11, fontWeight: 600 }}>📥 JSON</button>
+                  </>
+                )}
+                <button onClick={() => setSelectedJob(null)} style={{ background: "none", border: "none", color: "#94A3B8", cursor: "pointer", fontSize: 20 }}>✕</button>
+              </div>
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 16 }}>
+              <div style={{ padding: "8px 12px", borderRadius: 8, background: "rgba(15,23,42,0.6)" }}>
+                <div style={{ fontSize: 11, color: "#64748B", marginBottom: 2 }}>ID</div>
+                <div style={{ fontSize: 12, color: "#F1F5F9", fontFamily: "monospace" }}>{selectedJob._id}</div>
+              </div>
+              <div style={{ padding: "8px 12px", borderRadius: 8, background: "rgba(15,23,42,0.6)" }}>
+                <div style={{ fontSize: 11, color: "#64748B", marginBottom: 2 }}>Scan Type</div>
+                <div style={{ fontSize: 12, color: "#fca5a5" }}>{selectedJob.scan_type}</div>
+              </div>
+              <div style={{ padding: "8px 12px", borderRadius: 8, background: "rgba(15,23,42,0.6)" }}>
+                <div style={{ fontSize: 11, color: "#64748B", marginBottom: 2 }}>Status</div>
+                <div style={{ fontSize: 12, color: selectedJob.status === "success" ? "#4ade80" : selectedJob.status === "error" ? "#f87171" : "#fbbf24" }}>{selectedJob.status}</div>
+              </div>
+              <div style={{ padding: "8px 12px", borderRadius: 8, background: "rgba(15,23,42,0.6)" }}>
+                <div style={{ fontSize: 11, color: "#64748B", marginBottom: 2 }}>Worker</div>
+                <div style={{ fontSize: 12, color: "#F1F5F9" }}>{selectedJob.assigned_worker || "—"}</div>
+              </div>
+              <div style={{ padding: "8px 12px", borderRadius: 8, background: "rgba(15,23,42,0.6)" }}>
+                <div style={{ fontSize: 11, color: "#64748B", marginBottom: 2 }}>Ngày tạo</div>
+                <div style={{ fontSize: 12, color: "#F1F5F9" }}>{selectedJob.createdAt ? new Date(selectedJob.createdAt).toLocaleString() : "—"}</div>
+              </div>
+              <div style={{ padding: "8px 12px", borderRadius: 8, background: "rgba(15,23,42,0.6)" }}>
+                <div style={{ fontSize: 11, color: "#64748B", marginBottom: 2 }}>Cập nhật</div>
+                <div style={{ fontSize: 12, color: "#F1F5F9" }}>{selectedJob.updatedAt ? new Date(selectedJob.updatedAt).toLocaleString() : "—"}</div>
+              </div>
+            </div>
+            {selectedJob.input && (
+              <div style={{ marginBottom: 12 }}>
+                <div style={{ fontSize: 12, color: "#64748B", marginBottom: 4 }}>📥 Input</div>
+                <pre style={{ background: "rgba(15,23,42,0.8)", padding: 12, borderRadius: 8, fontSize: 11, color: "#94A3B8", overflow: "auto", maxHeight: 120 }}>{JSON.stringify(selectedJob.input, null, 2)}</pre>
+              </div>
+            )}
+            {selectedJob.error_message && (
+              <div style={{ marginBottom: 12 }}>
+                <div style={{ fontSize: 12, color: "#f87171", marginBottom: 4 }}>❌ Lỗi</div>
+                <pre style={{ background: "rgba(239,68,68,0.1)", padding: 12, borderRadius: 8, fontSize: 11, color: "#fca5a5", overflow: "auto" }}>{selectedJob.error_message}</pre>
+              </div>
+            )}
+            {Array.isArray(selectedJob.result) && selectedJob.result.length > 0 && (
+              <div>
+                <div style={{ fontSize: 12, color: "#64748B", marginBottom: 4 }}>📊 Kết quả ({selectedJob.result.length} items)</div>
+                <div style={{ maxHeight: 350, overflow: "auto", borderRadius: 8, border: "1px solid rgba(148,163,184,0.1)" }}>
+                  <table className="result-table" style={{ margin: 0 }}>
+                    <thead>
+                      <tr>
+                        <th>#</th>
+                        {Object.keys(selectedJob.result[0]).filter(k => k !== "_id" && k !== "__v").slice(0, 6).map(k => <th key={k}>{k}</th>)}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {selectedJob.result.map((item: any, idx: number) => (
+                        <tr key={idx}>
+                          <td>{idx + 1}</td>
+                          {Object.keys(selectedJob.result[0]).filter(k => k !== "_id" && k !== "__v").slice(0, 6).map(k => (
+                            <td key={k} style={{ fontSize: 11, maxWidth: 200, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                              {typeof item[k] === "object" ? JSON.stringify(item[k]) : String(item[k] ?? "—")}
+                            </td>
+                          ))}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* 2-col layout */}
+      {tab !== "jobs" && (
       <div style={{ display: "grid", gridTemplateColumns: "380px 1fr", gap: 24, alignItems: "start" }}>
         {/* LEFT: Form */}
         <div className="tool-form" style={{ position: "sticky", top: 80 }}>
@@ -447,6 +628,7 @@ export default function YouTubeToolPage() {
           )}
         </div>
       </div>
+      )}
 
       {/* ===== DETAIL MODAL ===== */}
       {selectedRow && (

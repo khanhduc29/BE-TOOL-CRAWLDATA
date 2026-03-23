@@ -18,8 +18,6 @@ import workerRoute from "./routes/worker.route.js";
 import chplayRoute from "./routes/chplay.route.js";
 import appstoreRoute from "./routes/appstore.route.js";
 import dashboardRoute from "./routes/dashboard.route.js";
-import heartbeatRoute from "./routes/heartbeat.route.js";
-import "./config/redis.js"; // Initialize Redis connection
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -48,7 +46,6 @@ app.use("/api/workers", workerRoute);
 app.use("/api/chplay", chplayRoute);
 app.use("/api/appstore", appstoreRoute);
 app.use("/api/dashboard", dashboardRoute);
-app.use("/api/heartbeat", heartbeatRoute);
 
 const PORT = process.env.PORT || 3000;
 

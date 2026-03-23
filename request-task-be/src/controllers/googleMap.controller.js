@@ -22,11 +22,15 @@ export async function createGoogleMapJobController(req, res) {
 
 export async function getPendingGoogleMapTask(req, res) {
   try {
+    const { worker_id } = req.query;
+    const query = { status: "pending" };
+    if (worker_id) query.assigned_worker = worker_id;
+
     const task = await GoogleMapTask.findOneAndUpdate(
-      { status: "pending" },            // điều kiện
-      { status: "processing" },          // lock task
+      query,
+      { status: "processing" },
       {
-        sort: { created_at: 1 },         // FIFO
+        sort: { created_at: 1 },
         new: true,
       }
     );

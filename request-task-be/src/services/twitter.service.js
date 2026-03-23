@@ -1,6 +1,6 @@
 import TwitterRequest from "../models/TwitterRequest.model.js";
 import TwitterTask from "../models/TwitterTask.model.js";
-import { addTaskToQueue } from "./queue.service.js";
+import { assignWorkersRoundRobin } from "../utils/assignWorker.js";
 
 export async function createTwitterScan(data) {
   const { scan_type } = data;
@@ -61,10 +61,8 @@ export async function createTwitterScan(data) {
   }
 
   // 3. Insert tasks
+  await assignWorkersRoundRobin("twitter", tasks);
   const createdTasks = await TwitterTask.insertMany(tasks);
-  for (const task of createdTasks) {
-    addTaskToQueue("twitter", { taskId: task._id.toString(), scan_type: task.scan_type, input: task.input }).catch(() => {});
-  }
 
   request.total_tasks = tasks.length;
   await request.save();

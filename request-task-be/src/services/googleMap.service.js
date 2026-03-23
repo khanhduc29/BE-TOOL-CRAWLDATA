@@ -1,6 +1,6 @@
 import GoogleMapJob from "../models/GoogleMapJob.model.js";
 import GoogleMapTask from "../models/GoogleMapTask.model.js";
-import { addTaskToQueue } from "./queue.service.js";
+import { assignWorkersRoundRobin } from "../utils/assignWorker.js";
 
 export async function createGoogleMapJob(data) {
   if (!data?.raw_keywords) {
@@ -52,10 +52,8 @@ export async function createGoogleMapJob(data) {
   }));
 
   // 4️⃣ tạo task
+  await assignWorkersRoundRobin("google-map", tasks);
   const createdTasks = await GoogleMapTask.insertMany(tasks);
-  for (const task of createdTasks) {
-    addTaskToQueue("google-map", { taskId: task._id.toString(), keyword: task.keyword, input: task }).catch(() => {});
-  }
 
   job.total_tasks = tasks.length;
   await job.save();

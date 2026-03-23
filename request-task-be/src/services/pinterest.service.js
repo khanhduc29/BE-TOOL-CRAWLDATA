@@ -1,6 +1,6 @@
 import PinterestRequest from "../models/PinterestRequest.model.js";
 import PinterestTask from "../models/PinterestTask.model.js";
-import { addTaskToQueue } from "./queue.service.js";
+import { assignWorkersRoundRobin } from "../utils/assignWorker.js";
 
 /**
  * CREATE SCAN
@@ -42,10 +42,8 @@ export async function createPinterestScan(data) {
       throw new Error("Unsupported scan_type");
   }
 
+  await assignWorkersRoundRobin("pinterest", tasks);
   const createdTasks = await PinterestTask.insertMany(tasks);
-  for (const task of createdTasks) {
-    addTaskToQueue("pinterest", { taskId: task._id.toString(), scan_type: task.scan_type, input: task.input }).catch(() => {});
-  }
 
   request.total_tasks = tasks.length;
   await request.save();
@@ -56,10 +54,11 @@ export async function createPinterestScan(data) {
 /**
  * GET PENDING TASK
  */
-export async function getPendingPinterestTasks(limit = 5) {
-  const tasks = await PinterestTask.find({
-    status: "pending",
-  })
+export async function getPendingPinterestTasks(limit = 5, worker_id = null) {
+  const query = { status: "pending" };
+  if (worker_id) query.assigned_worker = worker_id;
+
+  const tasks = await PinterestTask.find(query)
     .sort({ createdAt: 1 })
     .limit(limit);
 

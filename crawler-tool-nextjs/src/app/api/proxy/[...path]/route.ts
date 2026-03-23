@@ -22,6 +22,7 @@ async function proxyRequest(
       method,
       headers: { "Content-Type": "application/json" },
       signal: AbortSignal.timeout(60000),
+      cache: "no-store",
     };
 
     if (method !== "GET" && method !== "HEAD") {

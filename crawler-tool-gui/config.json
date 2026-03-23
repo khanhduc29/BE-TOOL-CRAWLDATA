@@ -10,7 +10,8 @@
       "icon": "🗺️",
       "color": "#4285F4",
       "worker_type": "node",
-      "worker_path": "../google-maps-crawler/dist/index.js"
+      "worker_path": "../google-maps-crawler/dist/index.js",
+      "worker_id": ""
     },
     "instagram": {
       "label": "Instagram",
@@ -20,7 +21,8 @@
       "icon": "📷",
       "color": "#E1306C",
       "worker_type": "python",
-      "worker_path": "../instagram-crawler/main.py"
+      "worker_path": "../instagram-crawler/main.py",
+      "worker_id": ""
     },
     "tiktok": {
       "label": "TikTok",
@@ -30,7 +32,8 @@
       "icon": "🎵",
       "color": "#00F2EA",
       "worker_type": "python",
-      "worker_path": "../tiktok-crawler/main.py"
+      "worker_path": "../tiktok-crawler/main.py",
+      "worker_id": ""
     },
     "youtube": {
       "label": "YouTube",
@@ -40,7 +43,9 @@
       "icon": "▶️",
       "color": "#FF0000",
       "worker_type": "python",
-      "worker_path": "../youtube-crawler/main.py"
+      "worker_path": "../youtube-crawler/main.py",
+      "worker_id": "",
+      "api_key": ""
     },
     "pinterest": {
       "label": "Pinterest",
@@ -50,7 +55,8 @@
       "icon": "📌",
       "color": "#E60023",
       "worker_type": "python",
-      "worker_path": "../pinterest-crawler/main.py"
+      "worker_path": "../pinterest-crawler/main.py",
+      "worker_id": ""
     },
     "twitter": {
       "label": "X (Twitter)",
@@ -60,7 +66,8 @@
       "icon": "𝕏",
       "color": "#1DA1F2",
       "worker_type": "python",
-      "worker_path": "../twitter-crawler/main.py"
+      "worker_path": "../twitter-crawler/main.py",
+      "worker_id": ""
     },
     "chplay": {
       "label": "CH Play",
@@ -70,7 +77,8 @@
       "icon": "🛒",
       "color": "#01875F",
       "worker_type": "python",
-      "worker_path": "./workers/chplay_worker.py"
+      "worker_path": "./workers/chplay_worker.py",
+      "worker_id": ""
     },
     "appstore": {
       "label": "App Store",
@@ -80,7 +88,8 @@
       "icon": "🍎",
       "color": "#0D96F6",
       "worker_type": "python",
-      "worker_path": "./workers/appstore_worker.py"
+      "worker_path": "./workers/appstore_worker.py",
+      "worker_id": ""
     }
   }
 }

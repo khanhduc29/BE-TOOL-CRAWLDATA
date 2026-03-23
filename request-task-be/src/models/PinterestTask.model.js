@@ -26,6 +26,12 @@ const PinterestTaskSchema = new mongoose.Schema(
       type: Object,
       default: null,
     },
+
+    assigned_worker: {
+      type: String,
+      default: null,
+      index: true,
+    },
   },
   { timestamps: true }
 );

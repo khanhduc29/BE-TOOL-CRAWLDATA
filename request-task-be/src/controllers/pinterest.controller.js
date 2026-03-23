@@ -36,8 +36,9 @@ export async function createScan(req, res) {
 export async function getPendingTasks(req, res) {
   try {
     const limit = parseInt(req.query.limit) || 5;
+    const worker_id = req.query.worker_id || null;
 
-    const tasks = await getPendingPinterestTasks(limit);
+    const tasks = await getPendingPinterestTasks(limit, worker_id);
 
     res.json({
       success: true,

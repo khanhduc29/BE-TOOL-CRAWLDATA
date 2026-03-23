@@ -4,6 +4,7 @@ import {
   getPendingYouTubeTask,
   updateYouTubeTask,
   getLatestYouTubeTask,
+  getAllYouTubeTasks,
 } from "../controllers/youtube.controller.js";
 
 const router = express.Router();
@@ -19,5 +20,8 @@ router.put("/task/:id", updateYouTubeTask);
 
 // FE lấy task mới nhất
 router.get("/task/latest", getLatestYouTubeTask);
+
+// History: all tasks
+router.get("/tasks", getAllYouTubeTasks);
 
 export default router;

@@ -20,8 +20,12 @@ export async function createTwitterScanController(req, res) {
 
 export async function getPendingTwitterTask(req, res) {
   try {
+    const { worker_id } = req.query;
+    const query = { status: "pending" };
+    if (worker_id) query.assigned_worker = worker_id;
+
     const task = await TwitterTask.findOneAndUpdate(
-      { status: "pending" },
+      query,
       { status: "running" },
       {
         sort: { createdAt: 1 },

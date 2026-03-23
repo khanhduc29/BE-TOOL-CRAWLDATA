@@ -20,8 +20,16 @@ export async function createTikTokScanController(req, res) {
 
 export async function getPendingTikTokTask(req, res) {
   try {
+    const { worker_id } = req.query;
+
+    // Build query: if worker_id provided, only return tasks assigned to this worker
+    const query = { status: "pending" };
+    if (worker_id) {
+      query.assigned_worker = worker_id;
+    }
+
     const task = await TikTokTask.findOneAndUpdate(
-      { status: "pending" },
+      query,
       { status: "running" },
       {
         sort: { createdAt: 1 },

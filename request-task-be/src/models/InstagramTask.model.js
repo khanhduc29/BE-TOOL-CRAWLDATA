@@ -45,6 +45,12 @@ const InstagramTaskSchema = new mongoose.Schema(
       type: Date,
       default: null,
     },
+
+    assigned_worker: {
+      type: String,
+      default: null,
+      index: true,
+    },
   },
   {
     timestamps: true,

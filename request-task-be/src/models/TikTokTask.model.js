@@ -31,6 +31,12 @@ const TikTokTaskSchema = new mongoose.Schema(
     },
 
     error_message: String,
+
+    assigned_worker: {
+      type: String,
+      default: null,
+      index: true,
+    },
   },
   {
     timestamps: true,

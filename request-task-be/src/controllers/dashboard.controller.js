@@ -1,6 +1,3 @@
-import redis from "../config/redis.js";
-import { getAllQueueStats, TOOL_NAMES } from "../services/queue.service.js";
-
 // Import all task models
 import TikTokTask from "../models/TikTokTask.model.js";
 import PinterestTask from "../models/PinterestTask.model.js";
@@ -10,6 +7,7 @@ import TwitterTask from "../models/TwitterTask.model.js";
 import GoogleMapTask from "../models/GoogleMapTask.model.js";
 import ChplayTask from "../models/ChplayTask.model.js";
 import AppstoreTask from "../models/AppstoreTask.model.js";
+import Worker from "../models/Worker.model.js";
 
 const TOOL_MODELS = {
   tiktok: TikTokTask,
@@ -48,12 +46,6 @@ export async function getDashboardStats(req, res) {
       totalError += error;
     }
 
-    // Queue stats from Redis
-    let queueStats = {};
-    try {
-      queueStats = await getAllQueueStats();
-    } catch { /* Redis may be offline */ }
-
     res.json({
       success: true,
       data: {
@@ -64,7 +56,6 @@ export async function getDashboardStats(req, res) {
           error: totalError,
         },
         tools,
-        queues: queueStats,
       },
     });
   } catch (err) {
@@ -74,32 +65,22 @@ export async function getDashboardStats(req, res) {
 
 /**
  * GET /api/dashboard/workers
- * Worker heartbeat status from Redis
+ * Worker status from MongoDB
  */
 export async function getDashboardWorkers(req, res) {
   try {
-    const workers = [];
-    const keys = await redis.keys("worker:*");
+    const workers = await Worker.find().lean();
+    const now = Date.now();
 
-    for (const key of keys) {
-      const data = await redis.hgetall(key);
-      if (data && data.tool) {
-        const lastBeat = parseInt(data.lastHeartbeat || "0");
-        const isOnline = Date.now() - lastBeat < 60000; // 60s timeout
-        workers.push({
-          tool: data.tool,
-          hostname: data.hostname || "unknown",
-          online: isOnline,
-          cpu: parseFloat(data.cpu || "0"),
-          ram: parseFloat(data.ram || "0"),
-          tasks_completed: parseInt(data.tasks_completed || "0"),
-          lastHeartbeat: lastBeat,
-          uptime: data.uptime || "0",
-        });
-      }
-    }
+    const result = workers.map((w) => ({
+      worker_id: w.worker_id,
+      tool: w.tool,
+      online: now - new Date(w.last_heartbeat).getTime() < 60000,
+      last_heartbeat: w.last_heartbeat,
+      registered_at: w.registered_at,
+    }));
 
-    res.json({ success: true, data: workers });
+    res.json({ success: true, data: result });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }
@@ -115,10 +96,8 @@ export async function getDashboardThroughput(req, res) {
     const minutes = 60;
     const buckets = [];
 
-    // Query all completed tasks in last 60 minutes
     const since = new Date(now.getTime() - minutes * 60 * 1000);
 
-    // Aggregate across all models
     const allTasks = [];
     for (const [tool, Model] of Object.entries(TOOL_MODELS)) {
       const tasks = await Model.find(
@@ -130,7 +109,6 @@ export async function getDashboardThroughput(req, res) {
       }
     }
 
-    // Group by minute
     for (let i = minutes - 1; i >= 0; i--) {
       const bucketStart = now.getTime() - (i + 1) * 60000;
       const bucketEnd = now.getTime() - i * 60000;
@@ -154,39 +132,16 @@ export async function getDashboardThroughput(req, res) {
 
 /**
  * GET /api/dashboard/logs
- * Recent logs stored in Redis list
+ * Placeholder — returns empty (no Redis)
  */
 export async function getDashboardLogs(req, res) {
-  try {
-    const limit = parseInt(req.query.limit) || 50;
-    const raw = await redis.lrange("dashboard:logs", 0, limit - 1);
-    const logs = raw.map((r) => {
-      try { return JSON.parse(r); } catch { return { message: r }; }
-    });
-
-    res.json({ success: true, data: logs });
-  } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
-  }
+  res.json({ success: true, data: [] });
 }
 
 /**
  * POST /api/dashboard/log
- * Workers push logs here
+ * Placeholder — no-op (no Redis)
  */
 export async function pushDashboardLog(req, res) {
-  try {
-    const { tool, level, message } = req.body;
-    const entry = {
-      tool: tool || "unknown",
-      level: level || "info",
-      message: message || "",
-      timestamp: new Date().toISOString(),
-    };
-    await redis.lpush("dashboard:logs", JSON.stringify(entry));
-    await redis.ltrim("dashboard:logs", 0, 499); // Keep last 500
-    res.json({ success: true });
-  } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
-  }
+  res.json({ success: true });
 }

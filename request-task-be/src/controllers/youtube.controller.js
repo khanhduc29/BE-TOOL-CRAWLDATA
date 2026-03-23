@@ -29,8 +29,12 @@ export async function createYouTubeScanController(req, res) {
  */
 export async function getPendingYouTubeTask(req, res) {
   try {
+    const { worker_id } = req.query;
+    const query = { status: "pending" };
+    if (worker_id) query.assigned_worker = worker_id;
+
     const task = await YouTubeTask.findOneAndUpdate(
-      { status: "pending" },
+      query,
       { status: "running" },
       {
         sort: { createdAt: 1 },
@@ -139,6 +143,40 @@ export async function getLatestYouTubeTask(req, res) {
     return res.json({
       success: true,
       data: task || null,
+    });
+  } catch (err) {
+    return res.status(500).json({
+      success: false,
+      message: err.message,
+    });
+  }
+}
+
+/**
+ * GET /api/youtube/tasks
+ * History: all YouTube tasks with pagination
+ * ?scan_type=videos&status=success&limit=50&skip=0
+ */
+export async function getAllYouTubeTasks(req, res) {
+  try {
+    const { scan_type, status, limit = 50, skip = 0 } = req.query;
+
+    const query = {};
+    if (scan_type) query.scan_type = scan_type;
+    if (status) query.status = status;
+
+    const tasks = await YouTubeTask.find(query)
+      .sort({ createdAt: -1 })
+      .skip(Number(skip))
+      .limit(Number(limit))
+      .lean();
+
+    const total = await YouTubeTask.countDocuments(query);
+
+    return res.json({
+      success: true,
+      data: tasks,
+      total,
     });
   } catch (err) {
     return res.status(500).json({

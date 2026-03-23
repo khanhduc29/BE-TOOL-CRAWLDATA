@@ -1,8 +1,21 @@
 import express from "express";
 import { startWorker, stopWorker, getWorkers } from "../workers/workerManager.js";
+import {
+  registerWorker,
+  unregisterWorker,
+  listWorkers,
+  workerHeartbeat,
+} from "../controllers/worker.controller.js";
 
 const router = express.Router();
 
+// ─── New: Worker Registration ───
+router.post("/register", registerWorker);
+router.delete("/:worker_id", unregisterWorker);
+router.get("/list", listWorkers);
+router.post("/heartbeat", workerHeartbeat);
+
+// ─── Legacy: GUI worker management ───
 router.get("/", (req, res) => {
   res.json(getWorkers());
 });
@@ -24,4 +37,4 @@ router.post("/stop", (req, res) => {
   res.json({ success: true });
 });
 
-export default router;
+export default router;

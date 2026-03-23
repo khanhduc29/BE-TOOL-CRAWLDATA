@@ -1,6 +1,6 @@
 import TikTokRequest from "../models/TikTokRequest.model.js";
 import TikTokTask from "../models/TikTokTask.model.js";
-import { addTaskToQueue } from "./queue.service.js";
+import { assignWorkersRoundRobin } from "../utils/assignWorker.js";
 
 export async function createTikTokScan(data) {
   const { scan_type } = data;
@@ -87,17 +87,10 @@ export async function createTikTokScan(data) {
       throw new Error("Unsupported scan_type");
   }
 
-  // 3. insert task
-  const createdTasks = await TikTokTask.insertMany(tasks);
+  // 3. assign workers (round-robin)
+  await assignWorkersRoundRobin("tiktok", tasks);
 
-  // 4. Push vào Redis queue (fire-and-forget, backward compatible)
-  for (const task of createdTasks) {
-    addTaskToQueue("tiktok", {
-      taskId: task._id.toString(),
-      scan_type: task.scan_type,
-      input: task.input,
-    }).catch(() => {});
-  }
+  const createdTasks = await TikTokTask.insertMany(tasks);
 
   request.total_tasks = tasks.length;
   await request.save();
