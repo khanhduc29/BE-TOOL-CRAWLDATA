@@ -23,17 +23,29 @@ export async function createGoogleMapJobController(req, res) {
 export async function getPendingGoogleMapTask(req, res) {
   try {
     const { worker_id } = req.query;
-    const query = { status: "pending" };
-    if (worker_id) query.assigned_worker = worker_id;
+    console.log(`[GoogleMap] getPendingTask called, worker_id=${worker_id || "none"}`);
 
-    const task = await GoogleMapTask.findOneAndUpdate(
-      query,
-      { status: "processing" },
-      {
-        sort: { created_at: 1 },
-        new: true,
-      }
-    );
+    let task = null;
+
+    // 1) Ưu tiên: task đã assign cho worker này
+    if (worker_id) {
+      task = await GoogleMapTask.findOneAndUpdate(
+        { status: "pending", assigned_worker: worker_id },
+        { status: "processing" },
+        { sort: { created_at: 1 }, new: true }
+      );
+    }
+
+    // 2) Fallback: task chưa assign (hoặc không có worker_id)
+    if (!task) {
+      task = await GoogleMapTask.findOneAndUpdate(
+        { status: "pending", $or: [{ assigned_worker: { $exists: false } }, { assigned_worker: "" }, { assigned_worker: null }] },
+        { status: "processing", ...(worker_id ? { assigned_worker: worker_id } : {}) },
+        { sort: { created_at: 1 }, new: true }
+      );
+    }
+
+    console.log(`[GoogleMap] Found task: ${task ? task._id : "none"}`);
 
     if (!task) {
       return res.json({

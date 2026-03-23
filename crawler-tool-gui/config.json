@@ -1,5 +1,5 @@
 {
-  "api_base_url": "https://be-tool.onrender.com",
+  "api_base_url": "http://localhost:3000",
   "log_dir": "./logs",
   "tools": {
     "google_maps": {

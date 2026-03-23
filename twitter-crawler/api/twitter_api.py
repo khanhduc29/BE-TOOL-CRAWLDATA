@@ -1,12 +1,16 @@
 import os
 import requests
 API_BASE = os.environ.get("API_BASE_URL", "http://localhost:3000") + "/api/twitter"
+WORKER_ID = os.environ.get("WORKER_ID", "")
 
 # API_BASE = "https://be-tool-crawldata.onrender.com/api/twitter"
 
 
 def fetch_pending_task():
-    res = requests.get(f"{API_BASE}/task/pending", timeout=10)
+    params = {}
+    if WORKER_ID:
+        params["worker_id"] = WORKER_ID
+    res = requests.get(f"{API_BASE}/task/pending", params=params, timeout=10)
     res.raise_for_status()
     data = res.json()
 

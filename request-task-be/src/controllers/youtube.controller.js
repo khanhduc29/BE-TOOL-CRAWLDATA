@@ -30,17 +30,29 @@ export async function createYouTubeScanController(req, res) {
 export async function getPendingYouTubeTask(req, res) {
   try {
     const { worker_id } = req.query;
-    const query = { status: "pending" };
-    if (worker_id) query.assigned_worker = worker_id;
+    console.log(`[YouTube] getPendingTask called, worker_id=${worker_id || "none"}`);
 
-    const task = await YouTubeTask.findOneAndUpdate(
-      query,
-      { status: "running" },
-      {
-        sort: { createdAt: 1 },
-        new: true,
-      }
-    );
+    let task = null;
+
+    // 1) Ưu tiên: task đã assign cho worker này
+    if (worker_id) {
+      task = await YouTubeTask.findOneAndUpdate(
+        { status: "pending", assigned_worker: worker_id },
+        { status: "running" },
+        { sort: { createdAt: 1 }, new: true }
+      );
+    }
+
+    // 2) Fallback: task chưa assign
+    if (!task) {
+      task = await YouTubeTask.findOneAndUpdate(
+        { status: "pending", $or: [{ assigned_worker: { $exists: false } }, { assigned_worker: "" }, { assigned_worker: null }] },
+        { status: "running", ...(worker_id ? { assigned_worker: worker_id } : {}) },
+        { sort: { createdAt: 1 }, new: true }
+      );
+    }
+
+    console.log(`[YouTube] Found task: ${task ? task._id : "none"}`);
 
     if (!task) {
       return res.json({

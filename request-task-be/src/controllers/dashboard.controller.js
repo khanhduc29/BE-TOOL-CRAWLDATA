@@ -65,20 +65,70 @@ export async function getDashboardStats(req, res) {
 
 /**
  * GET /api/dashboard/workers
- * Worker status from MongoDB
+ * Worker status from Workers collection + derived from task data
  */
 export async function getDashboardWorkers(req, res) {
   try {
-    const workers = await Worker.find().lean();
     const now = Date.now();
+    const workersMap = new Map();
 
-    const result = workers.map((w) => ({
-      worker_id: w.worker_id,
-      tool: w.tool,
-      online: now - new Date(w.last_heartbeat).getTime() < 60000,
-      last_heartbeat: w.last_heartbeat,
-      registered_at: w.registered_at,
-    }));
+    // 1) Workers from dedicated collection
+    const dbWorkers = await Worker.find().lean();
+    for (const w of dbWorkers) {
+      workersMap.set(w.worker_id, {
+        worker_id: w.worker_id,
+        tool: w.tool,
+        status: w.status,
+        online: now - new Date(w.last_heartbeat).getTime() < 90000,
+        last_heartbeat: w.last_heartbeat,
+        tasks_completed: w.tasks_completed || 0,
+        hostname: w.hostname || "unknown",
+      });
+    }
+
+    // 2) Derive workers from assigned_worker in tasks (last 7 days)
+    const since = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+    for (const [tool, Model] of Object.entries(TOOL_MODELS)) {
+      try {
+        const tasks = await Model.find(
+          { assigned_worker: { $exists: true, $ne: "" }, updatedAt: { $gte: since } },
+          { assigned_worker: 1, status: 1, updatedAt: 1 }
+        ).lean();
+
+        for (const t of tasks) {
+          const wid = t.assigned_worker;
+          if (!wid) continue;
+
+          if (!workersMap.has(wid)) {
+            workersMap.set(wid, {
+              worker_id: wid,
+              tool,
+              status: "offline",
+              online: false,
+              last_heartbeat: t.updatedAt,
+              tasks_completed: 0,
+              hostname: "unknown",
+              source: "task-derived",
+            });
+          }
+
+          const entry = workersMap.get(wid);
+          // Count completed tasks
+          if (t.status === "success" || t.status === "error") {
+            entry.tasks_completed = (entry.tasks_completed || 0) + 1;
+          }
+          // Update last seen
+          if (new Date(t.updatedAt) > new Date(entry.last_heartbeat || 0)) {
+            entry.last_heartbeat = t.updatedAt;
+          }
+        }
+      } catch { /* skip model errors */ }
+    }
+
+    const result = Array.from(workersMap.values()).sort((a, b) => {
+      if (a.online !== b.online) return a.online ? -1 : 1;
+      return a.tool.localeCompare(b.tool);
+    });
 
     res.json({ success: true, data: result });
   } catch (err) {

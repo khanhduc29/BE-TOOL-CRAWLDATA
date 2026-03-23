@@ -18,6 +18,8 @@ import workerRoute from "./routes/worker.route.js";
 import chplayRoute from "./routes/chplay.route.js";
 import appstoreRoute from "./routes/appstore.route.js";
 import dashboardRoute from "./routes/dashboard.route.js";
+import settingRoute from "./routes/setting.route.js";
+import apiKeyRoute from "./routes/apiKey.route.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -46,6 +48,8 @@ app.use("/api/workers", workerRoute);
 app.use("/api/chplay", chplayRoute);
 app.use("/api/appstore", appstoreRoute);
 app.use("/api/dashboard", dashboardRoute);
+app.use("/api/settings", settingRoute);
+app.use("/api/api-keys", apiKeyRoute);
 
 const PORT = process.env.PORT || 3000;
 

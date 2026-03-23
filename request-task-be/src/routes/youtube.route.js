@@ -1,4 +1,5 @@
 import express from "express";
+import { autoRegisterWorker } from "../middleware/autoRegisterWorker.js";
 import {
   createYouTubeScanController,
   getPendingYouTubeTask,
@@ -13,7 +14,7 @@ const router = express.Router();
 router.post("/scan", createYouTubeScanController);
 
 // Worker lấy task pending
-router.get("/task/pending", getPendingYouTubeTask);
+router.get("/task/pending", autoRegisterWorker("youtube"), getPendingYouTubeTask);
 
 // Worker update task
 router.put("/task/:id", updateYouTubeTask);

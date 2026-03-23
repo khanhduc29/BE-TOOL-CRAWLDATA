@@ -86,6 +86,13 @@ export default function YouTubeToolPage() {
   const [jobsLimit, setJobsLimit] = useState(20);
   const [selectedJob, setSelectedJob] = useState<any>(null);
 
+  // Settings — multi API key management
+  const [apiKeys, setApiKeys] = useState<any[]>([]);
+  const [newKeyValue, setNewKeyValue] = useState("");
+  const [newKeyLabel, setNewKeyLabel] = useState("");
+  const [keySaving, setKeySaving] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
+
   // UI
   const [loading, setLoading] = useState(false);
   const [taskStatus, setTaskStatus] = useState<"idle" | "pending" | "running" | "success" | "error">("idle");
@@ -118,6 +125,64 @@ export default function YouTubeToolPage() {
       } catch { /* ignore */ }
     }, 3000);
   }, []);
+
+  // Load API keys on mount
+  const loadApiKeys = useCallback(async () => {
+    try {
+      const res = await fetch(`${API}/api-keys?service=youtube`);
+      if (res.ok) {
+        const json = await res.json();
+        setApiKeys(json.data || []);
+      }
+    } catch { /* ignore */ }
+  }, []);
+
+  useEffect(() => { loadApiKeys(); }, [loadApiKeys]);
+
+  const addApiKey = async () => {
+    if (!newKeyValue.trim()) return;
+    setKeySaving(true);
+    try {
+      await fetch(`${API}/api-keys`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ service: "youtube", key: newKeyValue.trim(), label: newKeyLabel.trim() }),
+      });
+      setNewKeyValue(""); setNewKeyLabel("");
+      await loadApiKeys();
+    } catch { /* ignore */ } finally { setKeySaving(false); }
+  };
+
+  const deleteApiKey = async (id: string) => {
+    if (!confirm("Xóa API key này?")) return;
+    try {
+      await fetch(`${API}/api-keys/${id}`, { method: "DELETE" });
+      await loadApiKeys();
+    } catch { /* ignore */ }
+  };
+
+  const toggleKeyStatus = async (id: string, currentStatus: string) => {
+    const newStatus = currentStatus === "active" ? "disabled" : "active";
+    try {
+      await fetch(`${API}/api-keys/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: newStatus }),
+      });
+      await loadApiKeys();
+    } catch { /* ignore */ }
+  };
+
+  const resetExhaustedKeys = async () => {
+    try {
+      await fetch(`${API}/api-keys/reset`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ service: "youtube" }),
+      });
+      await loadApiKeys();
+    } catch { /* ignore */ }
+  };
 
   // Load jobs history
   const loadJobs = useCallback(async (pg = 1, lim = 20) => {
@@ -237,9 +302,84 @@ export default function YouTubeToolPage() {
   return (
     <div className="tool-page">
       <div className="tool-header">
-        <h1>▶️ YouTube Crawler</h1>
-        <p>Quét kênh, video và bình luận từ YouTube</p>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <div>
+            <h1>▶️ YouTube Crawler</h1>
+            <p>Quét kênh, video và bình luận từ YouTube</p>
+          </div>
+          <button onClick={() => setShowSettings(!showSettings)} style={{ padding: "8px 16px", borderRadius: 8, border: "1px solid rgba(148,163,184,0.2)", background: showSettings ? "rgba(239,68,68,0.15)" : "rgba(30,41,59,0.6)", color: showSettings ? "#fca5a5" : "#94A3B8", cursor: "pointer", fontSize: 13, fontWeight: 600, transition: "all 0.2s" }}>
+            ⚙️ Cài đặt
+          </button>
+        </div>
       </div>
+
+      {/* Settings Panel — Multi API Key Management */}
+      {showSettings && (
+        <div style={{ padding: 16, marginBottom: 16, borderRadius: 12, background: "rgba(15,23,42,0.6)", border: "1px solid rgba(148,163,184,0.1)" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+            <h3 style={{ margin: 0, fontSize: 14, color: "#F1F5F9" }}>🔑 Quản lý YouTube API Keys ({apiKeys.filter(k => k.status === "active").length} active / {apiKeys.length} total)</h3>
+            {apiKeys.some(k => k.status === "exhausted") && (
+              <button onClick={resetExhaustedKeys} style={{ padding: "4px 12px", borderRadius: 6, border: "1px solid rgba(251,191,36,0.3)", background: "rgba(251,191,36,0.1)", color: "#fbbf24", cursor: "pointer", fontSize: 11, fontWeight: 600 }}>🔄 Reset key hết quota</button>
+            )}
+          </div>
+
+          {/* Key list */}
+          {apiKeys.length > 0 && (
+            <table className="result-table" style={{ marginBottom: 12 }}>
+              <thead>
+                <tr><th>#</th><th>Label</th><th>Key</th><th>Status</th><th>Sử dụng</th><th>Lần cuối</th><th>Lỗi</th><th>Hành động</th></tr>
+              </thead>
+              <tbody>
+                {apiKeys.map((k: any, i: number) => {
+                  const statusColors: Record<string, { bg: string; color: string }> = {
+                    active: { bg: "rgba(34,197,94,0.15)", color: "#4ade80" },
+                    exhausted: { bg: "rgba(251,191,36,0.15)", color: "#fbbf24" },
+                    error: { bg: "rgba(239,68,68,0.15)", color: "#f87171" },
+                    disabled: { bg: "rgba(100,116,139,0.15)", color: "#94A3B8" },
+                  };
+                  const sc = statusColors[k.status] || statusColors.disabled;
+                  return (
+                    <tr key={k._id}>
+                      <td>{i + 1}</td>
+                      <td style={{ fontSize: 12, color: "#F1F5F9" }}>{k.label || "—"}</td>
+                      <td style={{ fontSize: 11, fontFamily: "monospace", color: "#64748B" }}>{k.key_masked}</td>
+                      <td><span style={{ padding: "2px 8px", borderRadius: 12, fontSize: 10, fontWeight: 600, background: sc.bg, color: sc.color }}>{k.status}</span></td>
+                      <td style={{ fontSize: 11, color: "#94A3B8", textAlign: "center" }}>{k.usage_count}</td>
+                      <td style={{ fontSize: 11, color: "#64748B", whiteSpace: "nowrap" }}>{k.last_used_at ? new Date(k.last_used_at).toLocaleString() : "—"}</td>
+                      <td style={{ fontSize: 10, color: "#f87171", maxWidth: 120, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={k.last_error}>{k.last_error || "—"}</td>
+                      <td>
+                        <div style={{ display: "flex", gap: 4 }}>
+                          <button onClick={() => toggleKeyStatus(k._id, k.status)} style={{ padding: "2px 8px", borderRadius: 4, border: "none", background: k.status === "active" ? "rgba(251,191,36,0.15)" : "rgba(34,197,94,0.15)", color: k.status === "active" ? "#fbbf24" : "#4ade80", cursor: "pointer", fontSize: 10 }}>
+                            {k.status === "active" ? "Tắt" : "Bật"}
+                          </button>
+                          <button onClick={() => deleteApiKey(k._id)} style={{ padding: "2px 8px", borderRadius: 4, border: "none", background: "rgba(239,68,68,0.15)", color: "#f87171", cursor: "pointer", fontSize: 10 }}>Xóa</button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          )}
+          {apiKeys.length === 0 && (
+            <div style={{ textAlign: "center", padding: "1rem", color: "#64748B", fontSize: 13 }}>Chưa có API key nào. Thêm key bên dưới.</div>
+          )}
+
+          {/* Add new key */}
+          <div style={{ display: "flex", gap: 8, alignItems: "center", marginTop: 8 }}>
+            <input value={newKeyLabel} onChange={e => setNewKeyLabel(e.target.value)} placeholder="Label (VD: Key 1)" style={{ width: 120, padding: "6px 10px", borderRadius: 6, border: "1px solid rgba(148,163,184,0.2)", background: "rgba(15,23,42,0.8)", color: "#F1F5F9", fontSize: 12 }} />
+            <input value={newKeyValue} onChange={e => setNewKeyValue(e.target.value)} placeholder="Nhập API Key..." style={{ flex: 1, padding: "6px 10px", borderRadius: 6, border: "1px solid rgba(148,163,184,0.2)", background: "rgba(15,23,42,0.8)", color: "#F1F5F9", fontSize: 12 }} />
+            <button onClick={addApiKey} disabled={keySaving || !newKeyValue.trim()} style={{ padding: "6px 14px", borderRadius: 6, border: "none", background: "linear-gradient(135deg, #EF4444, #DC2626)", color: "#fff", cursor: "pointer", fontSize: 12, fontWeight: 600, whiteSpace: "nowrap" }}>
+              {keySaving ? "⏳" : "➕"} Thêm key
+            </button>
+          </div>
+          <p style={{ margin: "8px 0 0 0", fontSize: 11, color: "#64748B" }}>
+            💡 Hệ thống tự động luân phiên giữa các key (LRU). Key hết quota sẽ bị đánh dấu và bỏ qua.
+            Lấy key tại{" "}
+            <a href="https://console.cloud.google.com/apis/credentials" target="_blank" rel="noopener noreferrer" style={{ color: "#60a5fa" }}>Google Cloud Console</a>.
+          </p>
+        </div>
+      )}
 
       {/* Tabs */}
       <div className="tool-tabs">

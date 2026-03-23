@@ -1,4 +1,5 @@
 import express from "express";
+import { autoRegisterWorker } from "../middleware/autoRegisterWorker.js";
 
 import {
   createScan,
@@ -13,7 +14,7 @@ const router = express.Router();
 
 router.post("/scan", createScan);
 
-router.get("/tasks/pending", getPendingTasks);
+router.get("/tasks/pending", autoRegisterWorker("pinterest"), getPendingTasks);
 
 router.get("/tasks/success", getSuccessTasks);
 

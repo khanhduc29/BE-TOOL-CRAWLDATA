@@ -100,7 +100,11 @@ def extract_video_id(url: str):
 
 def get_pending_task():
     try:
-        res = requests.get(f"{API_BASE_URL}/api/youtube/task/pending")
+        params = {}
+        worker_id = os.environ.get("WORKER_ID", "")
+        if worker_id:
+            params["worker_id"] = worker_id
+        res = requests.get(f"{API_BASE_URL}/api/youtube/task/pending", params=params)
         data = res.json()
         return data.get("data")
     except Exception as e:

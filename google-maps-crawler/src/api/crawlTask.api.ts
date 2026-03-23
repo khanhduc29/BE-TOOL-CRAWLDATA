@@ -2,6 +2,7 @@ import axios from "axios";
 import { CrawlTask } from "../types/crawlTask";
 
 const API_BASE = (process.env.API_BASE_URL || "http://localhost:3000") + "/api";
+const WORKER_ID = process.env.WORKER_ID || "";
 
 /**
  * Lấy nhiều Google Map task pending từ BE (cho parallel processing)
@@ -12,7 +13,8 @@ export async function getMultipleTasks(limit: number = 3): Promise<CrawlTask[]> 
   for (let i = 0; i < limit; i++) {
     try {
       const res = await axios.get(
-        `${API_BASE}/google-map/task/pending`
+        `${API_BASE}/google-map/task/pending`,
+        { params: WORKER_ID ? { worker_id: WORKER_ID } : {} }
       );
 
       const task: CrawlTask | null = res.data?.data ?? null;
@@ -32,7 +34,8 @@ export async function getMultipleTasks(limit: number = 3): Promise<CrawlTask[]> 
  */
 export async function getNextTask(): Promise<CrawlTask | null> {
   const res = await axios.get(
-    `${API_BASE}/google-map/task/pending`
+    `${API_BASE}/google-map/task/pending`,
+    { params: WORKER_ID ? { worker_id: WORKER_ID } : {} }
   );
 
   const task: CrawlTask | null = res.data?.data ?? null;

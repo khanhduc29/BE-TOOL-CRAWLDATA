@@ -1,4 +1,5 @@
 import express from "express";
+import { autoRegisterWorker } from "../middleware/autoRegisterWorker.js";
 
 import {
   createScan,
@@ -20,7 +21,7 @@ router.post("/create-scan", createScan);
 /**
  * WORKER LẤY TASK
  */
-router.get("/pending-tasks", getPendingTasks);
+router.get("/pending-tasks", autoRegisterWorker("instagram"), getPendingTasks);
 
 /**
  * XEM TASK ĐÃ SUCCESS

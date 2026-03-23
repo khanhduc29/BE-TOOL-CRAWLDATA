@@ -21,21 +21,29 @@ export async function createTikTokScanController(req, res) {
 export async function getPendingTikTokTask(req, res) {
   try {
     const { worker_id } = req.query;
+    console.log(`[TikTok] getPendingTask called, worker_id=${worker_id || "none"}`);
 
-    // Build query: if worker_id provided, only return tasks assigned to this worker
-    const query = { status: "pending" };
+    let task = null;
+
+    // 1) Ưu tiên: task đã assign cho worker này
     if (worker_id) {
-      query.assigned_worker = worker_id;
+      task = await TikTokTask.findOneAndUpdate(
+        { status: "pending", assigned_worker: worker_id },
+        { status: "running" },
+        { sort: { createdAt: 1 }, new: true }
+      );
     }
 
-    const task = await TikTokTask.findOneAndUpdate(
-      query,
-      { status: "running" },
-      {
-        sort: { createdAt: 1 },
-        new: true,
-      }
-    );
+    // 2) Fallback: task chưa assign
+    if (!task) {
+      task = await TikTokTask.findOneAndUpdate(
+        { status: "pending", $or: [{ assigned_worker: { $exists: false } }, { assigned_worker: "" }, { assigned_worker: null }] },
+        { status: "running", ...(worker_id ? { assigned_worker: worker_id } : {}) },
+        { sort: { createdAt: 1 }, new: true }
+      );
+    }
+
+    console.log(`[TikTok] Found task: ${task ? task._id : "none"}`);
 
     if (!task) {
       return res.json({
