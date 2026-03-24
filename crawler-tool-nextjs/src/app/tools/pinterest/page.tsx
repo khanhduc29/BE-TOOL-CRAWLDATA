@@ -43,6 +43,9 @@ export default function PinterestToolPage() {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(12);
   const [histPage, setHistPage] = useState(1);
+  const [histSearch, setHistSearch] = useState("");
+  const [histStatusFilter, setHistStatusFilter] = useState("");
+  const [histTypeFilter, setHistTypeFilter] = useState("");
 
   const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const stopPolling = () => { if (pollingRef.current) { clearInterval(pollingRef.current); pollingRef.current = null; } };
@@ -393,10 +396,50 @@ export default function PinterestToolPage() {
       {tab === "history" && (
         <div className="results-section">
           <h2>Lịch sử quét ({history.length})</h2>
+
+          {/* Filter bar */}
+          <div style={{ display: "flex", gap: 10, marginBottom: 16, flexWrap: "wrap", alignItems: "center" }}>
+            <input value={histSearch} onChange={e => { setHistSearch(e.target.value); setHistPage(1); }}
+              placeholder="🔍 Tìm theo keyword, URL..." style={{ flex: 1, minWidth: 180, padding: "8px 14px", borderRadius: 8, border: "1px solid rgba(255,255,255,0.1)", background: "rgba(15,23,42,0.6)", color: "#F1F5F9", fontSize: 13, outline: "none" }} />
+            <select value={histTypeFilter} onChange={e => { setHistTypeFilter(e.target.value); setHistPage(1); }}
+              style={{ padding: "8px 12px", borderRadius: 8, border: "1px solid rgba(255,255,255,0.1)", background: "rgba(15,23,42,0.6)", color: "#CBD5E1", fontSize: 13 }}>
+              <option value="">Tất cả loại</option>
+              <option value="pins">pins</option>
+              <option value="profile">profile</option>
+            </select>
+            <select value={histStatusFilter} onChange={e => { setHistStatusFilter(e.target.value); setHistPage(1); }}
+              style={{ padding: "8px 12px", borderRadius: 8, border: "1px solid rgba(255,255,255,0.1)", background: "rgba(15,23,42,0.6)", color: "#CBD5E1", fontSize: 13 }}>
+              <option value="">Tất cả trạng thái</option>
+              <option value="success">✅ Success</option>
+              <option value="error">❌ Error</option>
+              <option value="pending">⏳ Pending</option>
+            </select>
+            {(histSearch || histTypeFilter || histStatusFilter) && (
+              <button onClick={() => { setHistSearch(""); setHistTypeFilter(""); setHistStatusFilter(""); setHistPage(1); }}
+                style={{ padding: "8px 14px", borderRadius: 8, border: "1px solid rgba(239,68,68,0.3)", background: "rgba(239,68,68,0.1)", color: "#f87171", cursor: "pointer", fontSize: 12, fontWeight: 600 }}>
+                ✕ Xóa bộ lọc
+              </button>
+            )}
+          </div>
+
+          {(() => {
+            const filtered = history.filter(t => {
+              if (histStatusFilter && t.status !== histStatusFilter) return false;
+              if (histTypeFilter && t.scan_type !== histTypeFilter) return false;
+              if (histSearch) {
+                const s = histSearch.toLowerCase();
+                const input = (t.input?.keyword || t.input?.profile_url || "").toLowerCase();
+                if (!input.includes(s) && !(t.scan_type || "").toLowerCase().includes(s)) return false;
+              }
+              return true;
+            });
+            const pagedFiltered = paginate(filtered, histPage, 10);
+            return (
+              <>
           <table className="result-table">
             <thead><tr><th>#</th><th>Loại</th><th>Input</th><th>Status</th><th>Kết quả</th><th>Thời gian</th><th></th></tr></thead>
             <tbody>
-              {pagedHistory.map((task: any, i: number) => (
+              {pagedFiltered.map((task: any, i: number) => (
                 <tr key={task._id}>
                   <td>{(histPage - 1) * 10 + i + 1}</td>
                   <td><span style={{ padding: "2px 8px", borderRadius: 12, fontSize: 11, background: "rgba(220,38,38,0.12)", color: "#fca5a5" }}>{task.scan_type}</span></td>
@@ -423,7 +466,10 @@ export default function PinterestToolPage() {
               ))}
             </tbody>
           </table>
-          <PaginationBar current={histPage} total={totalPages(history, 10)} totalItems={history.length} onChange={setHistPage} ps={10} />
+          <PaginationBar current={histPage} total={totalPages(filtered, 10)} totalItems={filtered.length} onChange={setHistPage} ps={10} />
+              </>
+            );
+          })()}
         </div>
       )}
 

@@ -1,79 +1,7 @@
-
-# from core.channel_service import scan_channels_by_keyword
-# from core.video_service import scan_videos_by_keyword
-# from core.comment_service import scan_video_comments
-# from utils.file_saver import save_json, save_csv
-
-
-# def extract_video_id(url: str):
-#     import re
-#     match = re.search(r"v=([^&]+)", url)
-#     return match.group(1) if match else None
-
-
-# def run():
-#     print("====== YOUTUBE TOOL ======")
-
-#     keyword = input("🔎 Keyword / Video URL: ")
-#     data_type = input("📂 Type (channel / video / comment): ").lower()
-#     limit_input = input("📊 Limit (default 20): ")
-
-#     limit = int(limit_input) if limit_input.isdigit() else 20
-
-#     # =============================
-#     # CHANNEL
-#     # =============================
-#     if data_type == "channel":
-#         data = scan_channels_by_keyword(keyword, max_results=limit)
-
-#         print("\n=== CHANNELS ===")
-#         for item in data:
-#             print(item)
-
-#         save_json(data, "channels", keyword)
-#         save_csv(data, "channels", keyword)
-
-#     # =============================
-#     # VIDEO
-#     # =============================
-#     elif data_type == "video":
-#         data = scan_videos_by_keyword(keyword, max_results=limit)
-
-#         print("\n=== VIDEOS ===")
-#         for item in data:
-#             print(item)
-
-#         save_json(data, "videos", keyword)
-#         save_csv(data, "videos", keyword)
-
-#     # =============================
-#     # COMMENT
-#     # =============================
-#     elif data_type == "comment":
-#         video_id = extract_video_id(keyword)
-
-#         if not video_id:
-#             print("❌ Invalid YouTube video URL")
-#             return
-
-#         data = scan_video_comments(video_id, max_results=limit)
-
-#         print("\n=== COMMENTS ===")
-#         for item in data:
-#             print(item)
-
-#         save_json(data, "comments", video_id)
-#         save_csv(data, "comments", video_id)
-
-#     else:
-#         print("❌ Invalid type. Choose channel / video / comment")
-
-
-# if __name__ == "__main__":
-#     run()
-
 import sys
 import os
+import time
+import random
 
 from flask import json
 
@@ -81,15 +9,16 @@ os.environ["PYTHONIOENCODING"] = "utf-8"
 
 sys.stdout.reconfigure(encoding="utf-8")
 sys.stderr.reconfigure(encoding="utf-8")
-import time
 import requests
 
 from core.channel_service import scan_channels_by_keyword
 from core.video_service import scan_videos_by_keyword
 from core.comment_service import scan_video_comments
 
-# API_BASE_URL = "https://be-tool-crawldata.onrender.com"
 API_BASE_URL = os.environ.get("API_BASE_URL", "http://localhost:3000")
+
+MAX_RETRIES = 3
+RETRY_DELAYS = [30, 60, 120]  # Exponential backoff
 
 
 def extract_video_id(url: str):
@@ -130,11 +59,14 @@ def update_task(task_id, status, result=None, error_message=None):
             json=payload,
         )
 
-        # print("Update response status:", res.status_code)
-        # print("Update response body:", res.text)
-
     except Exception as e:
         print("Error updating task:", e)
+
+
+def random_delay(min_s=1.0, max_s=3.0):
+    """Delay ngẫu nhiên — chống phát hiện bot"""
+    delay = random.uniform(min_s, max_s)
+    time.sleep(delay)
 
 
 def process_task(task):
@@ -144,62 +76,74 @@ def process_task(task):
     task_id = task.get("_id")
     input_data = task.get("input", {})
 
-    # print("\n==============================")
-    # print("Task ID:", task_id)
-    # print("Raw scan_type:", raw_scan_type)
-    # print("scan_type repr:", repr(raw_scan_type))
-    # print("scan_type normalized:", scan_type)
-    # print("scan_type type:", type(raw_scan_type))
-    # print("Input:", input_data)
     print("==============================\n")
 
-    try:
-        if scan_type == "channels":
-            print("ENTER CHANNELS BLOCK")
-            result = scan_channels_by_keyword(
-                input_data.get("keyword"),
-                max_results=input_data.get("limit", 20),
-                deep_scan_social=input_data.get("deep_scan_social", False)
-            )
+    # 🔄 RETRY LOOP
+    last_error = None
+    for attempt in range(MAX_RETRIES):
+        try:
+            # 🛡️ Random delay trước mỗi lần crawl
+            random_delay(3, 8)
 
-        elif scan_type == "videos":
-            print("ENTER VIDEOS BLOCK")
-            result = scan_videos_by_keyword(
-                input_data.get("keyword"),
-                max_results=input_data.get("limit", 20),
-            )
+            print(f"Processing task {task_id} (attempt {attempt + 1}/{MAX_RETRIES})")
 
-        elif scan_type == "video_comments":
-            print("ENTER COMMENTS BLOCK")
+            if scan_type == "channels":
+                print("ENTER CHANNELS BLOCK")
+                result = scan_channels_by_keyword(
+                    input_data.get("keyword"),
+                    max_results=input_data.get("limit", 20),
+                    deep_scan_social=input_data.get("deep_scan_social", False)
+                )
 
-            video_id = extract_video_id(input_data.get("video_url", ""))
+            elif scan_type == "videos":
+                print("ENTER VIDEOS BLOCK")
+                result = scan_videos_by_keyword(
+                    input_data.get("keyword"),
+                    max_results=input_data.get("limit", 20),
+                )
 
-            print("Extracted video_id:", video_id)
+            elif scan_type == "video_comments":
+                print("ENTER COMMENTS BLOCK")
 
-            if not video_id:
-                raise Exception("Invalid video URL")
+                video_id = extract_video_id(input_data.get("video_url", ""))
 
-            result = scan_video_comments(
-                video_id,
-                max_results=input_data.get("limit_comments", 50),
-            )
+                print("Extracted video_id:", video_id)
 
-        else:
-            raise Exception(f"Unsupported scan_type: {scan_type}")
+                if not video_id:
+                    raise Exception("Invalid video URL")
 
-        print("Result type:", type(result))
-        print("Result length:", len(result) if result else 0)
+                result = scan_video_comments(
+                    video_id,
+                    max_results=input_data.get("limit_comments", 50),
+                )
 
-        if result:
-            print("done")
-            # print(json.dumps(result[0], ensure_ascii=False, indent=2))
+            else:
+                raise Exception(f"Unsupported scan_type: {scan_type}")
 
-        update_task(task_id, "success", result=result)
-        print("Task completed")
+            print("Result type:", type(result))
+            print("Result length:", len(result) if result else 0)
 
-    except Exception as e:
-        print("Task failed:", str(e))
-        update_task(task_id, "error", error_message=str(e))
+            if result:
+                print("done")
+
+            update_task(task_id, "success", result=result)
+            print("Task completed")
+            last_error = None
+            break  # ✅ Thành công
+
+        except Exception as e:
+            last_error = str(e)
+            print(f"Task failed (attempt {attempt + 1}/{MAX_RETRIES}):", last_error)
+
+            if attempt < MAX_RETRIES - 1:
+                delay = RETRY_DELAYS[min(attempt, len(RETRY_DELAYS) - 1)]
+                print(f"🔄 Retry {attempt + 2}/{MAX_RETRIES} in {delay}s...")
+                time.sleep(delay)
+
+    # Vẫn lỗi → báo error
+    if last_error:
+        print(f"💀 Task FAILED after {MAX_RETRIES} attempts: {last_error}")
+        update_task(task_id, "error", error_message=last_error)
 
 
 def run_worker():
@@ -211,7 +155,7 @@ def run_worker():
         if task:
             process_task(task)
         else:
-            print("No pending task 50sleeping...")
+            print("No pending task — sleeping 50s...")
 
         time.sleep(50)
 

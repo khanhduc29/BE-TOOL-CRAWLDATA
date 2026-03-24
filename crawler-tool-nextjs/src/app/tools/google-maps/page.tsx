@@ -78,6 +78,12 @@ export default function GoogleMapsToolPage() {
   const [resultPage, setResultPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
 
+  // ===== FILTERS =====
+  const [jobSearch, setJobSearch] = useState("");
+  const [jobStatusFilter, setJobStatusFilter] = useState("");
+  const [taskSearch, setTaskSearch] = useState("");
+  const [taskStatusFilter, setTaskStatusFilter] = useState("");
+
   // ===== API =====
   const fetchJobs = async () => {
     try {
@@ -301,6 +307,40 @@ export default function GoogleMapsToolPage() {
       {tab === "jobs" && (
         <div className="results-section">
           <h2>Danh sách Job ({jobs.length})</h2>
+
+          {/* Filter bar */}
+          <div style={{ display: "flex", gap: 10, marginBottom: 16, flexWrap: "wrap", alignItems: "center" }}>
+            <input value={jobSearch} onChange={e => { setJobSearch(e.target.value); setJobPage(1); }}
+              placeholder="🔍 Tìm theo keyword, địa chỉ..." style={{ flex: 1, minWidth: 180, padding: "8px 14px", borderRadius: 8, border: "1px solid rgba(255,255,255,0.1)", background: "rgba(15,23,42,0.6)", color: "#F1F5F9", fontSize: 13, outline: "none" }} />
+            <select value={jobStatusFilter} onChange={e => { setJobStatusFilter(e.target.value); setJobPage(1); }}
+              style={{ padding: "8px 12px", borderRadius: 8, border: "1px solid rgba(255,255,255,0.1)", background: "rgba(15,23,42,0.6)", color: "#CBD5E1", fontSize: 13 }}>
+              <option value="">Tất cả trạng thái</option>
+              <option value="success">✅ Success</option>
+              <option value="error">❌ Error</option>
+              <option value="processing">🔄 Processing</option>
+              <option value="running">🔄 Running</option>
+              <option value="pending">⏳ Pending</option>
+            </select>
+            {(jobSearch || jobStatusFilter) && (
+              <button onClick={() => { setJobSearch(""); setJobStatusFilter(""); setJobPage(1); }}
+                style={{ padding: "8px 14px", borderRadius: 8, border: "1px solid rgba(239,68,68,0.3)", background: "rgba(239,68,68,0.1)", color: "#f87171", cursor: "pointer", fontSize: 12, fontWeight: 600 }}>
+                ✕ Xóa bộ lọc
+              </button>
+            )}
+          </div>
+
+          {(() => {
+            const filteredJobs = jobs.filter(j => {
+              if (jobStatusFilter && j.status !== jobStatusFilter) return false;
+              if (jobSearch) {
+                const s = jobSearch.toLowerCase();
+                if (!(j.raw_keywords || "").toLowerCase().includes(s) && !(j.address || "").toLowerCase().includes(s)) return false;
+              }
+              return true;
+            });
+            const pJobs = paginate(filteredJobs, jobPage);
+            return (
+              <>
           <table className="result-table">
             <thead>
               <tr>
@@ -313,7 +353,7 @@ export default function GoogleMapsToolPage() {
               </tr>
             </thead>
             <tbody>
-              {pagedJobs.map((job: any) => (
+              {pJobs.map((job: any) => (
                 <tr key={job._id}>
                   <td style={{ maxWidth: 150, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={job.raw_keywords}>{job.raw_keywords}</td>
                   <td>{job.result_limit}</td>
@@ -335,9 +375,15 @@ export default function GoogleMapsToolPage() {
                   </td>
                 </tr>
               ))}
+              {filteredJobs.length === 0 && (
+                <tr><td colSpan={6} style={{ textAlign: "center", padding: "2rem", color: "#64748B" }}>Không tìm thấy kết quả</td></tr>
+              )}
             </tbody>
           </table>
-          <PaginationBar current={jobPage} total={totalPages(jobs)} totalItems={jobs.length} onChange={setJobPage} />
+          <PaginationBar current={jobPage} total={totalPages(filteredJobs)} totalItems={filteredJobs.length} onChange={setJobPage} />
+              </>
+            );
+          })()}
         </div>
       )}
 
@@ -350,12 +396,45 @@ export default function GoogleMapsToolPage() {
               ⬅ Quay lại Jobs
             </button>
           </div>
+
+          {/* Filter bar */}
+          <div style={{ display: "flex", gap: 10, marginBottom: 16, flexWrap: "wrap", alignItems: "center" }}>
+            <input value={taskSearch} onChange={e => { setTaskSearch(e.target.value); setTaskPage(1); }}
+              placeholder="🔍 Tìm theo keyword..." style={{ flex: 1, minWidth: 180, padding: "8px 14px", borderRadius: 8, border: "1px solid rgba(255,255,255,0.1)", background: "rgba(15,23,42,0.6)", color: "#F1F5F9", fontSize: 13, outline: "none" }} />
+            <select value={taskStatusFilter} onChange={e => { setTaskStatusFilter(e.target.value); setTaskPage(1); }}
+              style={{ padding: "8px 12px", borderRadius: 8, border: "1px solid rgba(255,255,255,0.1)", background: "rgba(15,23,42,0.6)", color: "#CBD5E1", fontSize: 13 }}>
+              <option value="">Tất cả trạng thái</option>
+              <option value="success">✅ Success</option>
+              <option value="error">❌ Error</option>
+              <option value="processing">🔄 Processing</option>
+              <option value="pending">⏳ Pending</option>
+            </select>
+            {(taskSearch || taskStatusFilter) && (
+              <button onClick={() => { setTaskSearch(""); setTaskStatusFilter(""); setTaskPage(1); }}
+                style={{ padding: "8px 14px", borderRadius: 8, border: "1px solid rgba(239,68,68,0.3)", background: "rgba(239,68,68,0.1)", color: "#f87171", cursor: "pointer", fontSize: 12, fontWeight: 600 }}>
+                ✕ Xóa bộ lọc
+              </button>
+            )}
+          </div>
+
+          {(() => {
+            const filteredTasks = tasks.filter(t => {
+              if (taskStatusFilter && t.status !== taskStatusFilter) return false;
+              if (taskSearch) {
+                const s = taskSearch.toLowerCase();
+                if (!(t.keyword || "").toLowerCase().includes(s) && !(t._id || "").toLowerCase().includes(s)) return false;
+              }
+              return true;
+            });
+            const pTasks = paginate(filteredTasks, taskPage);
+            return (
+              <>
           <table className="result-table">
             <thead>
               <tr><th>ID</th><th>Keyword</th><th>Limit</th><th>Status</th><th>Kết quả</th><th></th></tr>
             </thead>
             <tbody>
-              {pagedTasks.map((task: any) => (
+              {pTasks.map((task: any) => (
                 <tr key={task._id}>
                   <td>{task._id?.slice(0, 8)}</td>
                   <td>{task.keyword}</td>
@@ -379,9 +458,15 @@ export default function GoogleMapsToolPage() {
                   </td>
                 </tr>
               ))}
+              {filteredTasks.length === 0 && (
+                <tr><td colSpan={6} style={{ textAlign: "center", padding: "2rem", color: "#64748B" }}>Không tìm thấy kết quả</td></tr>
+              )}
             </tbody>
           </table>
-          <PaginationBar current={taskPage} total={totalPages(tasks)} totalItems={tasks.length} onChange={setTaskPage} />
+          <PaginationBar current={taskPage} total={totalPages(filteredTasks)} totalItems={filteredTasks.length} onChange={setTaskPage} />
+              </>
+            );
+          })()}
         </div>
       )}
 

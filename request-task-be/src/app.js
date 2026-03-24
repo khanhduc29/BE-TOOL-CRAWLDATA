@@ -20,6 +20,7 @@ import appstoreRoute from "./routes/appstore.route.js";
 import dashboardRoute from "./routes/dashboard.route.js";
 import settingRoute from "./routes/setting.route.js";
 import apiKeyRoute from "./routes/apiKey.route.js";
+import { startStuckTaskRecovery } from "./utils/stuckTaskRecovery.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -179,6 +180,9 @@ function startTwitterWorker() {
 }
 
 connectDB().then(() => {
+
+  // 🔄 Stuck task recovery — tự động reset task bị kẹt
+  startStuckTaskRecovery();
 
   // Workers are managed locally by crawler-tool-gui
   // Only start workers if ENABLE_WORKERS env is set (local dev only)

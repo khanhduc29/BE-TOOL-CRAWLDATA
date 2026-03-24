@@ -96,11 +96,33 @@ export async function updatePinterestTaskSuccess(taskId, results) {
  * UPDATE TASK ERROR
  */
 export async function updatePinterestTaskError(taskId, error) {
+  // 🔄 Auto-retry: kiểm tra retry_count trước khi đánh dấu error
+  const currentTask = await PinterestTask.findById(taskId);
+  if (currentTask) {
+    const retryCount = currentTask.retry_count || 0;
+    const maxRetries = currentTask.max_retries || 3;
+
+    if (retryCount < maxRetries) {
+      console.log(`🔄 Pinterest task ${taskId} auto-retry ${retryCount + 1}/${maxRetries} → pending`);
+      return PinterestTask.findByIdAndUpdate(
+        taskId,
+        {
+          status: "pending",
+          assigned_worker: null,
+          last_error: error,
+          retry_count: retryCount + 1,
+        },
+        { new: true }
+      );
+    }
+  }
+
   return PinterestTask.findByIdAndUpdate(
     taskId,
     {
       status: "error",
-      error,
+      error_message: error,
+      last_error: error,
       finished_at: new Date(),
     },
     { new: true }

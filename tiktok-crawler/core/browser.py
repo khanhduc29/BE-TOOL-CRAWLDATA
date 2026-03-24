@@ -2,6 +2,7 @@ import os
 import time
 import json
 from playwright.async_api import async_playwright
+from core.anti_block import get_random_ua
 
 
 async def create_browser(headless=True, session_file=None):
@@ -16,12 +17,10 @@ async def create_browser(headless=True, session_file=None):
     )
 
     # ===== TẠO CONTEXT =====
+    random_ua = get_random_ua()
+    print(f"[BROWSER] Using User-Agent: {random_ua[:60]}...", flush=True)
     context_kwargs = {
-        "user_agent": (
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-            "AppleWebKit/537.36 (KHTML, like Gecko) "
-            "Chrome/120.0.0.0 Safari/537.36"
-        ),
+        "user_agent": random_ua,
         "viewport": {"width": 1280, "height": 800},
     }
 

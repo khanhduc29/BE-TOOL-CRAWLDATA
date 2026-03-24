@@ -85,6 +85,9 @@ export default function YouTubeToolPage() {
   const [jobsPage, setJobsPage] = useState(1);
   const [jobsLimit, setJobsLimit] = useState(20);
   const [selectedJob, setSelectedJob] = useState<any>(null);
+  const [jobsSearch, setJobsSearch] = useState("");
+  const [jobsStatusFilter, setJobsStatusFilter] = useState("");
+  const [jobsTypeFilter, setJobsTypeFilter] = useState("");
 
   // Settings — multi API key management
   const [apiKeys, setApiKeys] = useState<any[]>([]);
@@ -416,6 +419,47 @@ export default function YouTubeToolPage() {
               </button>
             </div>
           </div>
+
+          {/* Filter bar */}
+          <div style={{ display: "flex", gap: 10, marginBottom: 16, flexWrap: "wrap", alignItems: "center" }}>
+            <input value={jobsSearch} onChange={e => { setJobsSearch(e.target.value); }}
+              placeholder="🔍 Tìm theo keyword, URL..." style={{ flex: 1, minWidth: 180, padding: "8px 14px", borderRadius: 8, border: "1px solid rgba(255,255,255,0.1)", background: "rgba(15,23,42,0.6)", color: "#F1F5F9", fontSize: 13, outline: "none" }} />
+            <select value={jobsTypeFilter} onChange={e => setJobsTypeFilter(e.target.value)}
+              style={{ padding: "8px 12px", borderRadius: 8, border: "1px solid rgba(255,255,255,0.1)", background: "rgba(15,23,42,0.6)", color: "#CBD5E1", fontSize: 13 }}>
+              <option value="">Tất cả loại</option>
+              <option value="channels">channels</option>
+              <option value="videos">videos</option>
+              <option value="video_comments">video_comments</option>
+            </select>
+            <select value={jobsStatusFilter} onChange={e => setJobsStatusFilter(e.target.value)}
+              style={{ padding: "8px 12px", borderRadius: 8, border: "1px solid rgba(255,255,255,0.1)", background: "rgba(15,23,42,0.6)", color: "#CBD5E1", fontSize: 13 }}>
+              <option value="">Tất cả trạng thái</option>
+              <option value="success">✅ Success</option>
+              <option value="error">❌ Error</option>
+              <option value="running">🔄 Running</option>
+              <option value="pending">⏳ Pending</option>
+            </select>
+            {(jobsSearch || jobsTypeFilter || jobsStatusFilter) && (
+              <button onClick={() => { setJobsSearch(""); setJobsTypeFilter(""); setJobsStatusFilter(""); }}
+                style={{ padding: "8px 14px", borderRadius: 8, border: "1px solid rgba(239,68,68,0.3)", background: "rgba(239,68,68,0.1)", color: "#f87171", cursor: "pointer", fontSize: 12, fontWeight: 600 }}>
+                ✕ Xóa bộ lọc
+              </button>
+            )}
+          </div>
+
+          {(() => {
+            const filteredJobs = jobsList.filter(j => {
+              if (jobsStatusFilter && j.status !== jobsStatusFilter) return false;
+              if (jobsTypeFilter && j.scan_type !== jobsTypeFilter) return false;
+              if (jobsSearch) {
+                const s = jobsSearch.toLowerCase();
+                const input = (j.input?.keyword || j.input?.video_url || j.assigned_worker || "").toLowerCase();
+                if (!input.includes(s) && !(j.scan_type || "").toLowerCase().includes(s) && !(j._id || "").toLowerCase().includes(s)) return false;
+              }
+              return true;
+            });
+            return (
+              <>
           {jobsLoading ? (
             <div style={{ textAlign: "center", padding: "2rem", color: "#64748B" }}>⏳ Đang tải...</div>
           ) : (
@@ -424,7 +468,7 @@ export default function YouTubeToolPage() {
                 <tr><th>#</th><th>ID</th><th>Scan Type</th><th>Status</th><th>Worker</th><th>Kết quả</th><th>Ngày tạo</th></tr>
               </thead>
               <tbody>
-                {jobsList.map((job: any, i: number) => (
+                {filteredJobs.map((job: any, i: number) => (
                   <tr key={job._id || i} onClick={() => setSelectedJob(job)} style={{ cursor: "pointer" }} title="Bấm để xem chi tiết">
                     <td>{(jobsPage - 1) * jobsLimit + i + 1}</td>
                     <td style={{ fontSize: 11, fontFamily: "monospace", color: "#64748B" }}>{job._id?.slice(-8)}</td>
@@ -441,12 +485,15 @@ export default function YouTubeToolPage() {
                     <td style={{ fontSize: 12, color: "#64748B", whiteSpace: "nowrap" }}>{job.createdAt ? new Date(job.createdAt).toLocaleString() : "—"}</td>
                   </tr>
                 ))}
-                {jobsList.length === 0 && (
-                  <tr><td colSpan={7} style={{ textAlign: "center", padding: "2rem", color: "#64748B" }}>Chưa có job nào</td></tr>
+                {filteredJobs.length === 0 && (
+                  <tr><td colSpan={7} style={{ textAlign: "center", padding: "2rem", color: "#64748B" }}>Không tìm thấy kết quả</td></tr>
                 )}
               </tbody>
             </table>
           )}
+              </>
+            );
+          })()}
           {/* Pagination */}
           {jobsTotal > jobsLimit && (
             <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: 12, marginTop: 16 }}>

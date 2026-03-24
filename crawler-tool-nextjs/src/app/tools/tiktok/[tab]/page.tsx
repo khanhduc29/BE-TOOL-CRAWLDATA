@@ -34,6 +34,7 @@ const TABS = [
   { key: "accounts", label: "👤 Tài khoản", scanType: "users" },
   { key: "video_comments", label: "💬 Bình luận video", scanType: "video_comments" },
   { key: "friends", label: "🤝 Bạn bè", scanType: "relations" },
+  { key: "history", label: "📜 Lịch sử", scanType: "" },
 ];
 
 export default function TikTokToolPage() {
@@ -61,6 +62,16 @@ export default function TikTokToolPage() {
   // Pagination
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
+
+  // History
+  const [history, setHistory] = useState<any[]>([]);
+  const [histPage, setHistPage] = useState(1);
+  const [histScanType, setHistScanType] = useState("");
+  const [histSearch, setHistSearch] = useState("");
+  const [histStatusFilter, setHistStatusFilter] = useState("");
+  const [histTypeFilter, setHistTypeFilter] = useState("");
+  const histPerPage = 10;
+  const histResultRef = useRef<HTMLDivElement>(null);
 
   const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const stopPolling = () => { if (pollingRef.current) { clearInterval(pollingRef.current); pollingRef.current = null; } };
@@ -95,8 +106,24 @@ export default function TikTokToolPage() {
     }, 3000);
   }, []);
 
+  // Fetch history
+  const fetchHistory = useCallback(async () => {
+    try {
+      const res = await fetch(`${API}/tiktok/tasks?limit=100`);
+      if (res.ok) {
+        const json = await res.json();
+        if (json.success) setHistory(json.data || []);
+      }
+    } catch { /* ignore */ }
+  }, []);
+
   // Fetch latest on tab change
   useEffect(() => {
+    if (tab === "history") {
+      stopPolling(); setResults([]); setTaskStatus("idle"); setHistPage(1);
+      fetchHistory();
+      return;
+    }
     stopPolling();
     setResults([]);
     setTaskStatus("idle");
@@ -136,7 +163,7 @@ export default function TikTokToolPage() {
     })();
 
     return () => stopPolling();
-  }, [scanType, startPolling]);
+  }, [scanType, startPolling, fetchHistory]);
 
   // ===== SUBMIT =====
   const handleScan = async () => {
@@ -266,7 +293,173 @@ export default function TikTokToolPage() {
         ))}
       </div>
 
+      <style>{`@keyframes spin { to { transform: rotate(360deg) } } @keyframes pulse { 0%,100% { opacity: 1 } 50% { opacity: 0.3 } }`}</style>
+
+      {/* ===== HISTORY TAB ===== */}
+      {tab === "history" && (
+        <div>
+          <h2 style={{ margin: "0 0 16px", fontSize: 18, color: "#F1F5F9" }}>📜 Lịch sử quét — {history.length} tasks</h2>
+
+          {/* Filter bar */}
+          <div style={{ display: "flex", gap: 10, marginBottom: 16, flexWrap: "wrap", alignItems: "center" }}>
+            <input
+              value={histSearch} onChange={e => { setHistSearch(e.target.value); setHistPage(1); }}
+              placeholder="🔍 Tìm theo keyword, URL..."
+              style={{ flex: 1, minWidth: 180, padding: "8px 14px", borderRadius: 8, border: "1px solid rgba(255,255,255,0.1)", background: "rgba(15,23,42,0.6)", color: "#F1F5F9", fontSize: 13, outline: "none" }}
+            />
+            <select
+              value={histTypeFilter} onChange={e => { setHistTypeFilter(e.target.value); setHistPage(1); }}
+              style={{ padding: "8px 12px", borderRadius: 8, border: "1px solid rgba(255,255,255,0.1)", background: "rgba(15,23,42,0.6)", color: "#CBD5E1", fontSize: 13 }}
+            >
+              <option value="">Tất cả loại</option>
+              <option value="top_posts">top_posts</option>
+              <option value="users">users</option>
+              <option value="video_comments">video_comments</option>
+              <option value="relations">relations</option>
+            </select>
+            <select
+              value={histStatusFilter} onChange={e => { setHistStatusFilter(e.target.value); setHistPage(1); }}
+              style={{ padding: "8px 12px", borderRadius: 8, border: "1px solid rgba(255,255,255,0.1)", background: "rgba(15,23,42,0.6)", color: "#CBD5E1", fontSize: 13 }}
+            >
+              <option value="">Tất cả trạng thái</option>
+              <option value="success">✅ Success</option>
+              <option value="error">❌ Error</option>
+              <option value="running">🔄 Running</option>
+              <option value="pending">⏳ Pending</option>
+            </select>
+            {(histSearch || histTypeFilter || histStatusFilter) && (
+              <button onClick={() => { setHistSearch(""); setHistTypeFilter(""); setHistStatusFilter(""); setHistPage(1); }}
+                style={{ padding: "8px 14px", borderRadius: 8, border: "1px solid rgba(239,68,68,0.3)", background: "rgba(239,68,68,0.1)", color: "#f87171", cursor: "pointer", fontSize: 12, fontWeight: 600 }}>
+                ✕ Xóa bộ lọc
+              </button>
+            )}
+          </div>
+
+          {(() => {
+            const filtered = history.filter(t => {
+              if (histStatusFilter && t.status !== histStatusFilter) return false;
+              if (histTypeFilter && t.scan_type !== histTypeFilter) return false;
+              if (histSearch) {
+                const s = histSearch.toLowerCase();
+                const input = (t.input?.keyword || t.input?.video_url || t.input?.target_username || "").toLowerCase();
+                if (!input.includes(s) && !(t.scan_type || "").toLowerCase().includes(s)) return false;
+              }
+              return true;
+            });
+            const totalHistPages = Math.max(1, Math.ceil(filtered.length / histPerPage));
+            return filtered.length === 0 ? (
+            <div style={{ textAlign: "center", padding: "3rem", color: "#64748B" }}>
+              <div style={{ fontSize: 48, marginBottom: 12 }}>📜</div>
+              <p>Chưa có lịch sử quét nào</p>
+            </div>
+          ) : (
+            <>
+              <table style={{ width: "100%", borderCollapse: "separate", borderSpacing: "0 4px", fontSize: 14 }}>
+                <thead>
+                  <tr style={{ fontSize: 12, color: "#64748B", textTransform: "uppercase" }}>
+                    <th style={{ padding: "8px 12px", textAlign: "left" }}>Loại</th>
+                    <th style={{ padding: "8px 12px", textAlign: "left" }}>Input</th>
+                    <th style={{ padding: "8px 12px", textAlign: "center" }}>Trạng thái</th>
+                    <th style={{ padding: "8px 12px", textAlign: "center" }}>Kết quả</th>
+                    <th style={{ padding: "8px 12px", textAlign: "left" }}>Thời gian</th>
+                    <th style={{ padding: "8px 12px", textAlign: "center" }}>Thao tác</th>
+                  </tr>
+                </thead>
+                <tbody>
+              {filtered.slice((histPage - 1) * histPerPage, histPage * histPerPage).map((task: any) => (
+                    <tr key={task._id} style={{ background: "rgba(15,23,42,0.5)" }}>
+                      <td style={{ padding: "10px 12px", borderRadius: "8px 0 0 8px" }}>
+                        <span style={{ padding: "3px 10px", borderRadius: 12, fontSize: 12, fontWeight: 600, background: "rgba(139,92,246,0.15)", color: "#A78BFA", border: "1px solid rgba(139,92,246,0.2)" }}>
+                          {task.scan_type}
+                        </span>
+                      </td>
+                      <td style={{ padding: "10px 12px", color: "#CBD5E1", fontSize: 13, maxWidth: 200, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                        {task.input?.keyword || task.input?.video_url || task.input?.target_username || "—"}
+                      </td>
+                      <td style={{ padding: "10px 12px", textAlign: "center" }}>
+                        <span style={{
+                          padding: "3px 10px", borderRadius: 12, fontSize: 12, fontWeight: 600,
+                          background: task.status === "success" ? "rgba(34,197,94,0.15)" : task.status === "error" ? "rgba(239,68,68,0.15)" : task.status === "running" ? "rgba(59,130,246,0.15)" : "rgba(251,191,36,0.15)",
+                          color: task.status === "success" ? "#4ade80" : task.status === "error" ? "#f87171" : task.status === "running" ? "#60a5fa" : "#fbbf24",
+                        }}>
+                          {task.status === "success" ? "✅" : task.status === "error" ? "❌" : task.status === "running" ? "🔄" : "⏳"} {task.status}
+                        </span>
+                      </td>
+                      <td style={{ padding: "10px 12px", textAlign: "center", color: "#94A3B8" }}>
+                        {Array.isArray(task.result) ? task.result.length : task.result ? 1 : 0} mục
+                      </td>
+                      <td style={{ padding: "10px 12px", fontSize: 12, color: "#64748B" }}>{new Date(task.createdAt).toLocaleString()}</td>
+                      <td style={{ padding: "10px 12px", textAlign: "center", borderRadius: "0 8px 8px 0" }}>
+                        {task.result && (Array.isArray(task.result) ? task.result.length > 0 : true) && (
+                          <button onClick={() => {
+                            const r = task.scan_type === "relations" ? (task.result?.friends_detail || []) : (Array.isArray(task.result) ? task.result : [task.result]);
+                            setResults(r); setPage(1); setTaskStatus("success"); setHistScanType(task.scan_type || "");
+                            setTimeout(() => histResultRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 100);
+                          }} style={{ padding: "4px 12px", borderRadius: 6, border: "1px solid rgba(139,92,246,0.3)", background: "rgba(139,92,246,0.1)", color: "#A78BFA", cursor: "pointer", fontSize: 12 }}>
+                            👁 Xem
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              {/* History pagination */}
+              {filtered.length > histPerPage && (
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 12, fontSize: 13, color: "#94A3B8" }}>
+                  <span>{(histPage - 1) * histPerPage + 1}–{Math.min(histPage * histPerPage, filtered.length)} / {filtered.length}</span>
+                  <div style={{ display: "flex", gap: 6 }}>
+                    <button disabled={histPage <= 1} onClick={() => setHistPage(p => p - 1)} style={{ padding: "3px 10px", borderRadius: 6, border: "1px solid rgba(139,92,246,0.2)", background: histPage <= 1 ? "transparent" : "rgba(139,92,246,0.1)", color: histPage <= 1 ? "#475569" : "#A78BFA", cursor: histPage <= 1 ? "default" : "pointer", fontSize: 12 }}>◀</button>
+                    <span>{histPage} / {totalHistPages}</span>
+                    <button disabled={histPage >= totalHistPages} onClick={() => setHistPage(p => p + 1)} style={{ padding: "3px 10px", borderRadius: 6, border: "1px solid rgba(139,92,246,0.2)", background: histPage >= totalHistPages ? "transparent" : "rgba(139,92,246,0.1)", color: histPage >= totalHistPages ? "#475569" : "#A78BFA", cursor: histPage >= totalHistPages ? "default" : "pointer", fontSize: 12 }}>▶</button>
+                  </div>
+                </div>
+              )}
+            </>
+          );
+          })()}
+
+          {/* Show results below when user clicks Xem */}
+          {results.length > 0 && (
+            <div ref={histResultRef} style={{ marginTop: 24 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12, flexWrap: "wrap", gap: 8 }}>
+                <h2 style={{ margin: 0 }}>Kết quả: {results.length} mục</h2>
+                <div style={{ display: "flex", gap: 8 }}>
+                  <button onClick={() => exportCSV(results, "history")} style={{ padding: "5px 14px", borderRadius: 6, border: "1px solid rgba(16,185,129,0.3)", background: "rgba(16,185,129,0.1)", color: "#34D399", cursor: "pointer", fontSize: 12, fontWeight: 600 }}>⬇ CSV</button>
+                  <button onClick={() => exportJSON(results, "history")} style={{ padding: "5px 14px", borderRadius: 6, border: "1px solid rgba(139,92,246,0.3)", background: "rgba(139,92,246,0.1)", color: "#A78BFA", cursor: "pointer", fontSize: 12, fontWeight: 600 }}>⬇ JSON</button>
+                  <button onClick={() => { setResults([]); setTaskStatus("idle"); }} style={{ padding: "5px 14px", borderRadius: 6, border: "1px solid rgba(255,255,255,0.1)", background: "transparent", color: "#94A3B8", cursor: "pointer", fontSize: 12 }}>✕ Đóng</button>
+                </div>
+              </div>
+
+              {/* Render table for any result type */}
+              <table className="result-table">
+                <thead>
+                  <tr>
+                    <th>#</th>
+                    {results.length > 0 && Object.keys(results[0]).filter(k => typeof results[0][k] !== "object").slice(0, 6).map(k => <th key={k}>{k}</th>)}
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {pagedResults.map((item: any, i: number) => (
+                    <tr key={i}>
+                      <td>{(page - 1) * pageSize + i + 1}</td>
+                      {Object.keys(results[0]).filter(k => typeof results[0][k] !== "object").slice(0, 6).map(k => (
+                        <td key={k} style={{ maxWidth: 180, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontSize: 13 }}>{String(item[k] ?? "—")}</td>
+                      ))}
+                      <td><button onClick={() => setSelectedRow(item)} style={{ padding: "3px 10px", borderRadius: 6, border: "1px solid rgba(139,92,246,0.3)", background: "rgba(139,92,246,0.1)", color: "#A78BFA", cursor: "pointer", fontSize: 11 }}>👁</button></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              <PaginationBar />
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Two-column layout */}
+      {tab !== "history" && (
       <div style={{ display: "grid", gridTemplateColumns: "380px 1fr", gap: 24, alignItems: "start" }}>
         {/* LEFT: Form */}
         <div className="tool-form" style={{ position: "sticky", top: 80 }}>
@@ -537,6 +730,7 @@ export default function TikTokToolPage() {
           )}
         </div>
       </div>
+      )}
 
       {/* ===== DETAIL MODAL ===== */}
       {selectedRow && (

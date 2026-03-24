@@ -76,11 +76,33 @@ export async function updateInstagramTaskSuccess(taskId, results) {
  * UPDATE TASK ERROR
  */
 export async function updateInstagramTaskError(taskId, error) {
+  // 🔄 Auto-retry: kiểm tra retry_count trước khi đánh dấu error
+  const currentTask = await InstagramTask.findById(taskId);
+  if (currentTask) {
+    const retryCount = currentTask.retry_count || 0;
+    const maxRetries = currentTask.max_retries || 3;
+
+    if (retryCount < maxRetries) {
+      console.log(`🔄 Instagram task ${taskId} auto-retry ${retryCount + 1}/${maxRetries} → pending`);
+      return InstagramTask.findByIdAndUpdate(
+        taskId,
+        {
+          status: "pending",
+          assigned_worker: null,
+          last_error: error,
+          retry_count: retryCount + 1,
+        },
+        { new: true }
+      );
+    }
+  }
+
   return InstagramTask.findByIdAndUpdate(
     taskId,
     {
       status: "error",
       error,
+      last_error: error,
       finished_at: new Date(),
     },
     { new: true }

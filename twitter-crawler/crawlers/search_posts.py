@@ -1,5 +1,6 @@
 import asyncio
 import re
+import random
 
 
 async def crawl_posts_by_keyword(page, context, keyword, limit=50, sort_by="latest", delay_range=None, **kwargs):
@@ -56,7 +57,7 @@ async def crawl_posts_by_keyword(page, context, keyword, limit=50, sort_by="late
 
         # Scroll down
         await page.evaluate("window.scrollBy(0, 800)")
-        await asyncio.sleep(1.5)
+        await asyncio.sleep(random.uniform(2, 4))
 
     print(f"[POSTS] Done. Total: {len(results)} tweets", flush=True)
     return results

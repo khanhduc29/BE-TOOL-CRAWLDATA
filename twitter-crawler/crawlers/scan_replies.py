@@ -1,4 +1,5 @@
 import asyncio
+import random
 
 
 async def crawl_tweet_replies(page, context, tweet_url, limit=100, delay_range=None, **kwargs):
@@ -59,7 +60,7 @@ async def crawl_tweet_replies(page, context, tweet_url, limit=100, delay_range=N
 
         # Scroll down
         await page.evaluate("window.scrollBy(0, 600)")
-        await asyncio.sleep(1.5)
+        await asyncio.sleep(random.uniform(2, 4))
 
     print(f"[REPLIES] Done. Total: {len(results)} replies", flush=True)
     return results

@@ -70,6 +70,8 @@ export default function InstagramToolPage() {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [histPage, setHistPage] = useState(1);
+  const [histSearch, setHistSearch] = useState("");
+  const [histStatusFilter, setHistStatusFilter] = useState("");
 
   const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -357,12 +359,45 @@ export default function InstagramToolPage() {
       {tab === "history" && (
         <div className="results-section">
           <h2>Lịch sử quét ({history.length})</h2>
+
+          {/* Filter bar */}
+          <div style={{ display: "flex", gap: 10, marginBottom: 16, flexWrap: "wrap", alignItems: "center" }}>
+            <input value={histSearch} onChange={e => { setHistSearch(e.target.value); setHistPage(1); }}
+              placeholder="🔍 Tìm theo URL..." style={{ flex: 1, minWidth: 180, padding: "8px 14px", borderRadius: 8, border: "1px solid rgba(255,255,255,0.1)", background: "rgba(15,23,42,0.6)", color: "#F1F5F9", fontSize: 13, outline: "none" }} />
+            <select value={histStatusFilter} onChange={e => { setHistStatusFilter(e.target.value); setHistPage(1); }}
+              style={{ padding: "8px 12px", borderRadius: 8, border: "1px solid rgba(255,255,255,0.1)", background: "rgba(15,23,42,0.6)", color: "#CBD5E1", fontSize: 13 }}>
+              <option value="">Tất cả trạng thái</option>
+              <option value="success">✅ Success</option>
+              <option value="error">❌ Error</option>
+              <option value="running">🔄 Running</option>
+              <option value="pending">⏳ Pending</option>
+            </select>
+            {(histSearch || histStatusFilter) && (
+              <button onClick={() => { setHistSearch(""); setHistStatusFilter(""); setHistPage(1); }}
+                style={{ padding: "8px 14px", borderRadius: 8, border: "1px solid rgba(239,68,68,0.3)", background: "rgba(239,68,68,0.1)", color: "#f87171", cursor: "pointer", fontSize: 12, fontWeight: 600 }}>
+                ✕ Xóa bộ lọc
+              </button>
+            )}
+          </div>
+
+          {(() => {
+            const filtered = history.filter(t => {
+              if (histStatusFilter && t.status !== histStatusFilter) return false;
+              if (histSearch) {
+                const s = histSearch.toLowerCase();
+                if (!(t.input?.url || "").toLowerCase().includes(s)) return false;
+              }
+              return true;
+            });
+            const pagedFiltered = paginate(filtered, histPage, pageSize);
+            return (
+              <>
           <table className="result-table">
             <thead>
               <tr><th>URL</th><th>Status</th><th>Thời gian</th><th></th></tr>
             </thead>
             <tbody>
-              {pagedHistory.map((task: any) => (
+              {pagedFiltered.map((task: any) => (
                 <tr key={task._id}>
                   <td style={{ maxWidth: 250, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{task.input?.url || "—"}</td>
                   <td>
@@ -386,7 +421,10 @@ export default function InstagramToolPage() {
               ))}
             </tbody>
           </table>
-          <PaginationBar current={histPage} total={totalPages(history, pageSize)} totalItems={history.length} onChange={setHistPage} />
+          <PaginationBar current={histPage} total={totalPages(filtered, pageSize)} totalItems={filtered.length} onChange={setHistPage} />
+              </>
+            );
+          })()}
         </div>
       )}
 

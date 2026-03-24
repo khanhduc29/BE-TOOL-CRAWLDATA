@@ -90,6 +90,31 @@ export async function updateYouTubeTask(req, res) {
       });
     }
 
+    // 🔄 Auto-retry: nếu error → kiểm tra retry_count trước
+    if (status === "error") {
+      const currentTask = await YouTubeTask.findById(id);
+      if (currentTask) {
+        const retryCount = currentTask.retry_count || 0;
+        const maxRetries = currentTask.max_retries || 3;
+
+        if (retryCount < maxRetries) {
+          const retryTask = await YouTubeTask.findByIdAndUpdate(
+            id,
+            {
+              status: "pending",
+              assigned_worker: null,
+              last_error: error_message || "Unknown error",
+              retry_count: retryCount + 1,
+              updatedAt: new Date(),
+            },
+            { new: true }
+          );
+          console.log(`🔄 YouTube task ${id} auto-retry ${retryCount + 1}/${maxRetries} → pending`);
+          return res.json({ success: true, data: retryTask, retried: true });
+        }
+      }
+    }
+
     const updateData = {
       status,
       updatedAt: new Date(),
@@ -102,6 +127,7 @@ export async function updateYouTubeTask(req, res) {
     if (status === "error") {
       updateData.error_message =
         error_message || "Unknown error";
+      updateData.last_error = updateData.error_message;
     }
 
     const task = await YouTubeTask.findByIdAndUpdate(

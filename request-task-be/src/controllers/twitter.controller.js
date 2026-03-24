@@ -79,6 +79,31 @@ export async function updateTwitterTask(req, res) {
       });
     }
 
+    // 🔄 Auto-retry: nếu error → kiểm tra retry_count trước
+    if (status === "error") {
+      const currentTask = await TwitterTask.findById(id);
+      if (currentTask) {
+        const retryCount = currentTask.retry_count || 0;
+        const maxRetries = currentTask.max_retries || 3;
+
+        if (retryCount < maxRetries) {
+          const retryTask = await TwitterTask.findByIdAndUpdate(
+            id,
+            {
+              status: "pending",
+              assigned_worker: null,
+              last_error: error_message || result?.error || "Unknown error",
+              retry_count: retryCount + 1,
+              updatedAt: new Date(),
+            },
+            { new: true }
+          );
+          console.log(`🔄 Twitter task ${id} auto-retry ${retryCount + 1}/${maxRetries} → pending`);
+          return res.json({ success: true, data: retryTask, retried: true });
+        }
+      }
+    }
+
     const updateData = {
       status,
       updatedAt: new Date(),
@@ -90,6 +115,7 @@ export async function updateTwitterTask(req, res) {
 
     if (status === "error") {
       updateData.error_message = error_message || result?.error || "Unknown error";
+      updateData.last_error = updateData.error_message;
       if (result) updateData.result = result;
     }
 

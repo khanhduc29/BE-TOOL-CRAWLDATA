@@ -79,6 +79,35 @@ export async function updateGoogleMapTask(req, res) {
       });
     }
 
+    // 🔄 Auto-retry: nếu error → kiểm tra retry_count trước
+    if (status === "error") {
+      const currentTask = await GoogleMapTask.findById(id);
+      if (currentTask) {
+        const retryCount = currentTask.retry_count || 0;
+        const maxRetries = currentTask.max_retries || 3;
+
+        if (retryCount < maxRetries) {
+          const retryTask = await GoogleMapTask.findByIdAndUpdate(
+            id,
+            {
+              status: "pending",
+              assigned_worker: null,
+              last_error: error_message || "Unknown error",
+              retry_count: retryCount + 1,
+              updated_at: new Date(),
+            },
+            { new: true }
+          );
+          console.log(`🔄 GoogleMap task ${id} auto-retry ${retryCount + 1}/${maxRetries} → pending`);
+
+          if (currentTask.job_id) {
+            await syncRequestStatus(GoogleMapTask, GoogleMapJobModel, "job_id", currentTask.job_id);
+          }
+          return res.json({ success: true, data: retryTask, retried: true });
+        }
+      }
+    }
+
     const updateData = {
       status,
       updated_at: new Date(),
@@ -99,6 +128,7 @@ export async function updateGoogleMapTask(req, res) {
 
     if (status === "error") {
       updateData.error_message = error_message || "Unknown error";
+      updateData.last_error = updateData.error_message;
     }
 
     const task = await GoogleMapTask.findByIdAndUpdate(

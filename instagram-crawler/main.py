@@ -1,55 +1,16 @@
-# from crawler.instagram_crawler import crawl_instagram_profile
-# from crawler.website_crawler import crawl_website
-
-
-# def run_scan(data):
-
-#     results = []
-
-#     for item in data:
-
-#         url = item["url"]
-#         scan_website = item["scan_website"]
-
-#         print("Scanning:", url)
-
-#         profile = crawl_instagram_profile(url)
-
-#         if scan_website and profile.get("website"):
-
-#             print("Scanning website:", profile["website"])
-
-#             website_data = crawl_website(profile["website"])
-#             profile["website_data"] = website_data
-
-#         results.append(profile)
-
-#     return results
-
-
-# if __name__ == "__main__":
-
-#     inputs = [
-#         {
-#             "url": "https://www.instagram.com/shapesparis/",
-#             "scan_website": True
-#         }
-#     ]
-
-#     data = run_scan(inputs)
-
-#     print(data)
-
 import time
 import os
+import random
 import requests
 
 from crawler.instagram_crawler import crawl_instagram_profile
 from crawler.website_crawler import crawl_website
 
 
-# API_BASE = "https://be-tool-crawldata.onrender.com/api/instagram"
 API_BASE = os.environ.get("API_BASE_URL", "http://localhost:3000") + "/api/instagram"
+
+MAX_RETRIES = 3
+RETRY_DELAYS = [30, 60, 120]  # Exponential backoff
 
 
 def log(msg):
@@ -94,6 +55,12 @@ def update_error(task_id, error):
     )
 
 
+def random_delay(min_s=1.0, max_s=3.0):
+    """Delay ngẫu nhiên (sync) — chống phát hiện bot"""
+    delay = random.uniform(min_s, max_s)
+    time.sleep(delay)
+
+
 def worker():
 
     log("Instagram worker started")
@@ -114,28 +81,44 @@ def worker():
         url = input_data["url"]
         scan_website = input_data.get("scan_website", False)
 
-        try:
+        # 🔄 RETRY LOOP
+        last_error = None
+        for attempt in range(MAX_RETRIES):
+            try:
+                # 🛡️ Random delay trước mỗi lần crawl
+                random_delay(3, 8)
 
-            log(f"Scanning {url}")
+                log(f"Scanning {url} (attempt {attempt + 1}/{MAX_RETRIES})")
 
-            profile = crawl_instagram_profile(url)
+                profile = crawl_instagram_profile(url)
 
-            if scan_website and profile.get("website"):
+                if scan_website and profile.get("website"):
 
-                log(f"Scanning website {profile['website']}")
+                    log(f"Scanning website {profile['website']}")
 
-                website_data = crawl_website(profile["website"])
-                profile["website_data"] = website_data
+                    website_data = crawl_website(profile["website"])
+                    profile["website_data"] = website_data
 
-            update_success(task_id, profile)
+                update_success(task_id, profile)
 
-            log("Task success")
+                log("Task success")
+                last_error = None
+                break  # ✅ Thành công
 
-        except Exception as e:
+            except Exception as e:
+                last_error = str(e)
+                log(f"Task error (attempt {attempt + 1}/{MAX_RETRIES}): {e}")
 
-            log(f"Task error {e}")
+                # Đợi backoff trước retry tiếp
+                if attempt < MAX_RETRIES - 1:
+                    delay = RETRY_DELAYS[min(attempt, len(RETRY_DELAYS) - 1)]
+                    log(f"🔄 Retry {attempt + 2}/{MAX_RETRIES} in {delay}s...")
+                    time.sleep(delay)
 
-            update_error(task_id, e)
+        # Vẫn lỗi sau tất cả retries → báo error
+        if last_error:
+            log(f"💀 Task FAILED after {MAX_RETRIES} attempts: {last_error}")
+            update_error(task_id, last_error)
 
         time.sleep(5)
 

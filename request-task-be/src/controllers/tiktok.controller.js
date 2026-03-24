@@ -79,6 +79,31 @@ export async function updateTikTokTask(req, res) {
       });
     }
 
+    // 🔄 Auto-retry: nếu error → kiểm tra retry_count trước
+    if (status === "error") {
+      const currentTask = await TikTokTask.findById(id);
+      if (currentTask) {
+        const retryCount = currentTask.retry_count || 0;
+        const maxRetries = currentTask.max_retries || 3;
+
+        if (retryCount < maxRetries) {
+          const retryTask = await TikTokTask.findByIdAndUpdate(
+            id,
+            {
+              status: "pending",
+              assigned_worker: null,
+              last_error: error_message || result?.error || "Unknown error",
+              retry_count: retryCount + 1,
+              updatedAt: new Date(),
+            },
+            { new: true }
+          );
+          console.log(`🔄 TikTok task ${id} auto-retry ${retryCount + 1}/${maxRetries} → pending`);
+          return res.json({ success: true, data: retryTask, retried: true });
+        }
+      }
+    }
+
     const updateData = {
       status,
       updatedAt: new Date(),
@@ -90,6 +115,7 @@ export async function updateTikTokTask(req, res) {
 
     if (status === "error") {
       updateData.error_message = error_message || result?.error || "Unknown error";
+      updateData.last_error = updateData.error_message;
       if (result) updateData.result = result;
     }
 
@@ -143,6 +169,40 @@ export async function getLatestTikTokTask(req, res) {
     return res.json({
       success: true,
       data: task || null,
+    });
+  } catch (err) {
+    return res.status(500).json({
+      success: false,
+      message: err.message,
+    });
+  }
+}
+
+/**
+ * GET all TikTok tasks (for history)
+ * /api/tiktok/tasks
+ * /api/tiktok/tasks?scan_type=top_posts&status=success&limit=50
+ */
+export async function getAllTikTokTasks(req, res) {
+  try {
+    const { scan_type, status, limit = 50, skip = 0 } = req.query;
+
+    const query = {};
+    if (scan_type) query.scan_type = scan_type;
+    if (status) query.status = status;
+
+    const tasks = await TikTokTask.find(query)
+      .sort({ createdAt: -1 })
+      .skip(Number(skip))
+      .limit(Number(limit))
+      .lean();
+
+    const total = await TikTokTask.countDocuments(query);
+
+    return res.json({
+      success: true,
+      data: tasks,
+      total,
     });
   } catch (err) {
     return res.status(500).json({

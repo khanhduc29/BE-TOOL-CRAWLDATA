@@ -66,6 +66,9 @@ export default function CHPlayToolPage() {
   const [histResults, setHistResults] = useState<any[]>([]);
   const [histScanType, setHistScanType] = useState<string>("");
   const [histResPage, setHistResPage] = useState(1);
+  const [histSearch, setHistSearch] = useState("");
+  const [histStatusFilter, setHistStatusFilter] = useState("");
+  const [histTypeFilter, setHistTypeFilter] = useState("");
   const histPerPage = 10;
   const histResultRef = useRef<HTMLDivElement>(null);
 
@@ -235,8 +238,46 @@ export default function CHPlayToolPage() {
       {tab === "history" && (
         <div>
           <h2 style={{ margin: "0 0 16px", fontSize: 18, color: "#F1F5F9" }}>📜 Lịch sử quét — {history.length} tasks</h2>
-          {history.length === 0 ? (
-            <div style={{ textAlign: "center", padding: "3rem", color: "#64748B" }}><div style={{ fontSize: 48, marginBottom: 12 }}>📜</div><p>Chưa có lịch sử quét nào</p></div>
+
+          {/* Filter bar */}
+          <div style={{ display: "flex", gap: 10, marginBottom: 16, flexWrap: "wrap", alignItems: "center" }}>
+            <input value={histSearch} onChange={e => { setHistSearch(e.target.value); setHistPage(1); }}
+              placeholder="🔍 Tìm theo keyword, app ID..." style={{ flex: 1, minWidth: 180, padding: "8px 14px", borderRadius: 8, border: "1px solid rgba(255,255,255,0.1)", background: "rgba(15,23,42,0.6)", color: "#F1F5F9", fontSize: 13, outline: "none" }} />
+            <select value={histTypeFilter} onChange={e => { setHistTypeFilter(e.target.value); setHistPage(1); }}
+              style={{ padding: "8px 12px", borderRadius: 8, border: "1px solid rgba(255,255,255,0.1)", background: "rgba(15,23,42,0.6)", color: "#CBD5E1", fontSize: 13 }}>
+              <option value="">Tất cả loại</option>
+              <option value="search">search</option>
+              <option value="reviews">reviews</option>
+            </select>
+            <select value={histStatusFilter} onChange={e => { setHistStatusFilter(e.target.value); setHistPage(1); }}
+              style={{ padding: "8px 12px", borderRadius: 8, border: "1px solid rgba(255,255,255,0.1)", background: "rgba(15,23,42,0.6)", color: "#CBD5E1", fontSize: 13 }}>
+              <option value="">Tất cả trạng thái</option>
+              <option value="success">✅ Success</option>
+              <option value="error">❌ Error</option>
+              <option value="pending">⏳ Pending</option>
+            </select>
+            {(histSearch || histTypeFilter || histStatusFilter) && (
+              <button onClick={() => { setHistSearch(""); setHistTypeFilter(""); setHistStatusFilter(""); setHistPage(1); }}
+                style={{ padding: "8px 14px", borderRadius: 8, border: "1px solid rgba(239,68,68,0.3)", background: "rgba(239,68,68,0.1)", color: "#f87171", cursor: "pointer", fontSize: 12, fontWeight: 600 }}>
+                ✕ Xóa bộ lọc
+              </button>
+            )}
+          </div>
+
+          {(() => {
+            const filtered = history.filter(t => {
+              if (histStatusFilter && t.status !== histStatusFilter) return false;
+              if (histTypeFilter && t.scan_type !== histTypeFilter) return false;
+              if (histSearch) {
+                const s = histSearch.toLowerCase();
+                const input = (t.input?.keyword || t.input?.app_id || "").toLowerCase();
+                if (!input.includes(s) && !(t.scan_type || "").toLowerCase().includes(s)) return false;
+              }
+              return true;
+            });
+            const totalHistPages = Math.max(1, Math.ceil(filtered.length / histPerPage));
+            return filtered.length === 0 ? (
+            <div style={{ textAlign: "center", padding: "3rem", color: "#64748B" }}><div style={{ fontSize: 48, marginBottom: 12 }}>📜</div><p>Không tìm thấy kết quả</p></div>
           ) : (
             <>
               <table style={{ width: "100%", borderCollapse: "separate", borderSpacing: "0 4px", fontSize: 14 }}>
@@ -249,7 +290,7 @@ export default function CHPlayToolPage() {
                   <th style={{ padding: "8px 12px", textAlign: "center" }}>Thao tác</th>
                 </tr></thead>
                 <tbody>
-                  {history.slice((histPage - 1) * histPerPage, histPage * histPerPage).map((task: any) => (
+                  {filtered.slice((histPage - 1) * histPerPage, histPage * histPerPage).map((task: any) => (
                     <tr key={task._id} style={{ background: "rgba(15,23,42,0.5)" }}>
                       <td style={{ padding: "10px 12px", borderRadius: "8px 0 0 8px" }}>
                         <span style={{ padding: "3px 10px", borderRadius: 12, fontSize: 12, fontWeight: 600, background: task.scan_type === "search" ? "rgba(16,185,129,0.15)" : "rgba(234,179,8,0.15)", color: task.scan_type === "search" ? "#34D399" : "#FBBF24", border: `1px solid ${task.scan_type === "search" ? "rgba(16,185,129,0.2)" : "rgba(234,179,8,0.2)"}` }}>
@@ -275,18 +316,19 @@ export default function CHPlayToolPage() {
                   ))}
                 </tbody>
               </table>
-              {history.length > histPerPage && (
+              {filtered.length > histPerPage && (
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 12, fontSize: 13, color: "#94A3B8" }}>
-                  <span>{(histPage - 1) * histPerPage + 1}–{Math.min(histPage * histPerPage, history.length)} / {history.length}</span>
+                  <span>{(histPage - 1) * histPerPage + 1}–{Math.min(histPage * histPerPage, filtered.length)} / {filtered.length}</span>
                   <div style={{ display: "flex", gap: 6 }}>
                     <button disabled={histPage <= 1} onClick={() => setHistPage(p => p - 1)} style={{ padding: "3px 10px", borderRadius: 6, border: "1px solid rgba(16,185,129,0.2)", background: histPage <= 1 ? "transparent" : "rgba(16,185,129,0.1)", color: histPage <= 1 ? "#475569" : "#34D399", cursor: histPage <= 1 ? "default" : "pointer", fontSize: 12 }}>◀</button>
-                    <span>{histPage} / {Math.ceil(history.length / histPerPage)}</span>
-                    <button disabled={histPage >= Math.ceil(history.length / histPerPage)} onClick={() => setHistPage(p => p + 1)} style={{ padding: "3px 10px", borderRadius: 6, border: "1px solid rgba(16,185,129,0.2)", background: histPage >= Math.ceil(history.length / histPerPage) ? "transparent" : "rgba(16,185,129,0.1)", color: histPage >= Math.ceil(history.length / histPerPage) ? "#475569" : "#34D399", cursor: histPage >= Math.ceil(history.length / histPerPage) ? "default" : "pointer", fontSize: 12 }}>▶</button>
+                    <span>{histPage} / {totalHistPages}</span>
+                    <button disabled={histPage >= totalHistPages} onClick={() => setHistPage(p => p + 1)} style={{ padding: "3px 10px", borderRadius: 6, border: "1px solid rgba(16,185,129,0.2)", background: histPage >= totalHistPages ? "transparent" : "rgba(16,185,129,0.1)", color: histPage >= totalHistPages ? "#475569" : "#34D399", cursor: histPage >= totalHistPages ? "default" : "pointer", fontSize: 12 }}>▶</button>
                   </div>
                 </div>
               )}
             </>
-          )}
+          );
+          })()}
           {histResults.length > 0 && (
             <div ref={histResultRef} style={{ marginTop: 24 }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>

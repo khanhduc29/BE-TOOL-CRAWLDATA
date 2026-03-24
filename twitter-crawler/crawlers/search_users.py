@@ -1,4 +1,5 @@
 import asyncio
+import random
 
 
 async def crawl_users_by_keyword(page, context, keyword, limit=50, delay_range=None, **kwargs):
@@ -52,7 +53,7 @@ async def crawl_users_by_keyword(page, context, keyword, limit=50, delay_range=N
 
         # Scroll down
         await page.evaluate("window.scrollBy(0, 600)")
-        await asyncio.sleep(1.5)
+        await asyncio.sleep(random.uniform(2, 4))
 
     print(f"[USERS] Done. Total: {len(results)} users", flush=True)
     return results
