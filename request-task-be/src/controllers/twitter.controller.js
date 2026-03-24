@@ -2,6 +2,7 @@ import { createTwitterScan } from "../services/twitter.service.js";
 import TwitterTask from "../models/TwitterTask.model.js";
 import TwitterRequest from "../models/TwitterRequest.model.js";
 import { syncRequestStatus } from "../utils/syncRequestStatus.js";
+import { incrementWorkerTaskCount } from "../utils/incrementWorkerTaskCount.js";
 
 export async function createTwitterScanController(req, res) {
   try {
@@ -38,6 +39,15 @@ export async function getPendingTwitterTask(req, res) {
     if (!task) {
       task = await TwitterTask.findOneAndUpdate(
         { status: "pending", $or: [{ assigned_worker: { $exists: false } }, { assigned_worker: "" }, { assigned_worker: null }] },
+        { status: "running", ...(worker_id ? { assigned_worker: worker_id } : {}) },
+        { sort: { createdAt: 1 }, new: true }
+      );
+    }
+
+    // 3) Last resort: task assign cho worker khác (offline/sai tool) → lấy luôn
+    if (!task) {
+      task = await TwitterTask.findOneAndUpdate(
+        { status: "pending" },
         { status: "running", ...(worker_id ? { assigned_worker: worker_id } : {}) },
         { sort: { createdAt: 1 }, new: true }
       );
@@ -130,6 +140,16 @@ export async function updateTwitterTask(req, res) {
         success: false,
         message: "Twitter task not found",
       });
+    }
+
+    // Increment worker tasks_completed or tasks_error
+    if (task.assigned_worker) {
+      if (status === "success") {
+        await incrementWorkerTaskCount(task.assigned_worker);
+      } else if (status === "error") {
+        const { incrementWorkerErrorCount } = await import("../utils/incrementWorkerTaskCount.js");
+        await incrementWorkerErrorCount(task.assigned_worker);
+      }
     }
 
     res.json({

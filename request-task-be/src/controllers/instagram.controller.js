@@ -6,6 +6,7 @@ import {
   updateInstagramTaskSuccess,
   updateInstagramTaskError,
 } from "../services/instagram.service.js";
+import { incrementWorkerTaskCount } from "../utils/incrementWorkerTaskCount.js";
 import InstagramRequest from "../models/InstagramRequest.model.js";
 import { syncRequestStatus } from "../utils/syncRequestStatus.js";
 
@@ -84,6 +85,11 @@ export async function updateTaskSuccess(req, res) {
 
     const task = await updateInstagramTaskSuccess(task_id, results);
 
+    // Increment worker tasks_completed
+    if (task?.assigned_worker) {
+      await incrementWorkerTaskCount(task.assigned_worker);
+    }
+
     // Sync parent request status
     if (task?.request_id) {
       await syncRequestStatus(InstagramTaskModel, InstagramRequest, "request_id", task.request_id);
@@ -109,6 +115,12 @@ export async function updateTaskError(req, res) {
     const { task_id, error } = req.body;
 
     const task = await updateInstagramTaskError(task_id, error);
+
+    // Increment worker tasks_error
+    if (task?.assigned_worker) {
+      const { incrementWorkerErrorCount } = await import("../utils/incrementWorkerTaskCount.js");
+      await incrementWorkerErrorCount(task.assigned_worker);
+    }
 
     // Sync parent request status
     if (task?.request_id) {

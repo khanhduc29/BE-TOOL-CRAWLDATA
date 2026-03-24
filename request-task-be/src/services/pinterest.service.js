@@ -55,14 +55,36 @@ export async function createPinterestScan(data) {
  * GET PENDING TASK
  */
 export async function getPendingPinterestTasks(limit = 5, worker_id = null) {
-  const query = { status: "pending" };
-  if (worker_id) query.assigned_worker = worker_id;
+  let task = null;
 
-  const tasks = await PinterestTask.find(query)
-    .sort({ createdAt: 1 })
-    .limit(limit);
+  // 1) Priority: task assigned to this worker
+  if (worker_id) {
+    task = await PinterestTask.findOneAndUpdate(
+      { status: "pending", assigned_worker: worker_id },
+      { status: "running" },
+      { sort: { createdAt: 1 }, new: true }
+    );
+  }
 
-  return tasks;
+  // 2) Fallback: unassigned pending task
+  if (!task) {
+    task = await PinterestTask.findOneAndUpdate(
+      { status: "pending", $or: [{ assigned_worker: { $exists: false } }, { assigned_worker: "" }, { assigned_worker: null }] },
+      { status: "running", ...(worker_id ? { assigned_worker: worker_id } : {}) },
+      { sort: { createdAt: 1 }, new: true }
+    );
+  }
+
+  // 3) Last resort: task assign cho worker khác (offline/sai tool) → lấy luôn
+  if (!task) {
+    task = await PinterestTask.findOneAndUpdate(
+      { status: "pending" },
+      { status: "running", ...(worker_id ? { assigned_worker: worker_id } : {}) },
+      { sort: { createdAt: 1 }, new: true }
+    );
+  }
+
+  return task ? [task] : [];
 }
 
 /**

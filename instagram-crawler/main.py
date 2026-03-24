@@ -8,6 +8,7 @@ from crawler.website_crawler import crawl_website
 
 
 API_BASE = os.environ.get("API_BASE_URL", "http://localhost:3000") + "/api/instagram"
+WORKER_ID = os.environ.get("WORKER_ID", "")
 
 MAX_RETRIES = 3
 RETRY_DELAYS = [30, 60, 120]  # Exponential backoff
@@ -19,7 +20,10 @@ def log(msg):
 
 def get_pending_tasks():
     print("[WORKER] Fetching tasks...")
-    res = requests.get(f"{API_BASE}/pending-tasks?limit=1")
+    params = {"limit": 1}
+    if WORKER_ID:
+        params["worker_id"] = WORKER_ID
+    res = requests.get(f"{API_BASE}/pending-tasks", params=params)
     print("[WORKER] Status:", res.status_code)
     data = res.json()
 

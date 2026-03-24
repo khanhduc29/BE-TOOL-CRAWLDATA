@@ -130,8 +130,12 @@ export default function MegaMenu({ onClose }: { onClose: () => void }) {
               <div className="menu-col">
                 <div className="menu-title">Cài đặt</div>
                 <Link className="menu-item" href="/settings/accounts">
-                  <span className="icon">⚙</span>
+                  <span className="icon">🔐</span>
                   <span className="label">Quản lý tài khoản</span>
+                </Link>
+                <Link className="menu-item" href="/settings/workers">
+                  <span className="icon">⚙</span>
+                  <span className="label">Quản lý Workers</span>
                 </Link>
               </div>
             </div>

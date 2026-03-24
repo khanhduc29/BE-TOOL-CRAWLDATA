@@ -3,6 +3,7 @@ import GoogleMapTask from "../models/GoogleMapTask.model.js";
 import GoogleMapJobModel from "../models/GoogleMapJob.model.js";
 import GoogleMapTaskModel from "../models/GoogleMapTask.model.js";
 import { syncRequestStatus } from "../utils/syncRequestStatus.js";
+import { incrementWorkerTaskCount } from "../utils/incrementWorkerTaskCount.js";
 
 export async function createGoogleMapJobController(req, res) {
   try {
@@ -40,6 +41,15 @@ export async function getPendingGoogleMapTask(req, res) {
     if (!task) {
       task = await GoogleMapTask.findOneAndUpdate(
         { status: "pending", $or: [{ assigned_worker: { $exists: false } }, { assigned_worker: "" }, { assigned_worker: null }] },
+        { status: "processing", ...(worker_id ? { assigned_worker: worker_id } : {}) },
+        { sort: { created_at: 1 }, new: true }
+      );
+    }
+
+    // 3) Last resort: task assign cho worker khác (offline/sai tool) → lấy luôn
+    if (!task) {
+      task = await GoogleMapTask.findOneAndUpdate(
+        { status: "pending" },
         { status: "processing", ...(worker_id ? { assigned_worker: worker_id } : {}) },
         { sort: { created_at: 1 }, new: true }
       );
@@ -142,6 +152,16 @@ export async function updateGoogleMapTask(req, res) {
         success: false,
         message: "Google Map task not found",
       });
+    }
+
+    // Increment worker tasks_completed or tasks_error
+    if (task.assigned_worker) {
+      if (status === "success") {
+        await incrementWorkerTaskCount(task.assigned_worker);
+      } else if (status === "error") {
+        const { incrementWorkerErrorCount } = await import("../utils/incrementWorkerTaskCount.js");
+        await incrementWorkerErrorCount(task.assigned_worker);
+      }
     }
 
     // Sync parent job status

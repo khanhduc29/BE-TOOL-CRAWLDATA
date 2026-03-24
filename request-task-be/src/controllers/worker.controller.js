@@ -35,18 +35,19 @@ export async function registerWorker(req, res) {
 
 /**
  * DELETE /api/workers/:worker_id
- * Worker ngắt kết nối
+ * Xóa worker khỏi hệ thống
  */
 export async function unregisterWorker(req, res) {
   try {
     const { worker_id } = req.params;
 
-    await Worker.findOneAndUpdate(
-      { worker_id },
-      { status: "offline" }
-    );
+    const result = await Worker.findOneAndDelete({ worker_id });
 
-    console.log(`🔴 Worker offline: ${worker_id}`);
+    if (!result) {
+      return res.status(404).json({ success: false, message: "Worker not found" });
+    }
+
+    console.log(`🗑 Worker deleted: ${worker_id}`);
 
     res.json({ success: true });
   } catch (err) {

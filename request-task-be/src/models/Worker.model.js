@@ -30,6 +30,10 @@ const WorkerSchema = new mongoose.Schema(
       type: Number,
       default: 0,
     },
+    tasks_error: {
+      type: Number,
+      default: 0,
+    },
     config: {
       type: mongoose.Schema.Types.Mixed,
       default: {},

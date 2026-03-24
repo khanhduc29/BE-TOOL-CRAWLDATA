@@ -5,6 +5,7 @@ import {
   updatePinterestTaskSuccess,
   updatePinterestTaskError,
 } from "../services/pinterest.service.js";
+import { incrementWorkerTaskCount } from "../utils/incrementWorkerTaskCount.js";
 import PinterestTask from "../models/PinterestTask.model.js";
 import PinterestRequest from "../models/PinterestRequest.model.js";
 import { syncRequestStatus } from "../utils/syncRequestStatus.js";
@@ -84,6 +85,12 @@ export async function updateTaskError(req, res) {
 
     const task = await updatePinterestTaskError(task_id, error);
 
+    // Increment worker tasks_error
+    if (task?.assigned_worker) {
+      const { incrementWorkerErrorCount } = await import("../utils/incrementWorkerTaskCount.js");
+      await incrementWorkerErrorCount(task.assigned_worker);
+    }
+
     // Sync parent request status
     if (task?.request_id) {
       await syncRequestStatus(PinterestTask, PinterestRequest, "request_id", task.request_id);
@@ -109,6 +116,11 @@ export async function updateTaskSuccess(req, res) {
     const { task_id, results } = req.body;
 
     const task = await updatePinterestTaskSuccess(task_id, results);
+
+    // Increment worker tasks_completed
+    if (task?.assigned_worker) {
+      await incrementWorkerTaskCount(task.assigned_worker);
+    }
 
     // Sync parent request status
     if (task?.request_id) {

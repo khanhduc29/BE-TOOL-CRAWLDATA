@@ -2,6 +2,7 @@ import { createTikTokScan } from "../services/tiktok.service.js";
 import TikTokTask from "../models/TikTokTask.model.js";
 import TikTokRequest from "../models/TikTokRequest.model.js";
 import { syncRequestStatus } from "../utils/syncRequestStatus.js";
+import { incrementWorkerTaskCount } from "../utils/incrementWorkerTaskCount.js";
 
 export async function createTikTokScanController(req, res) {
   try {
@@ -38,6 +39,15 @@ export async function getPendingTikTokTask(req, res) {
     if (!task) {
       task = await TikTokTask.findOneAndUpdate(
         { status: "pending", $or: [{ assigned_worker: { $exists: false } }, { assigned_worker: "" }, { assigned_worker: null }] },
+        { status: "running", ...(worker_id ? { assigned_worker: worker_id } : {}) },
+        { sort: { createdAt: 1 }, new: true }
+      );
+    }
+
+    // 3) Last resort: task assign cho worker khác (offline/sai tool) → lấy luôn
+    if (!task) {
+      task = await TikTokTask.findOneAndUpdate(
+        { status: "pending" },
         { status: "running", ...(worker_id ? { assigned_worker: worker_id } : {}) },
         { sort: { createdAt: 1 }, new: true }
       );
@@ -130,6 +140,16 @@ export async function updateTikTokTask(req, res) {
         success: false,
         message: "TikTok task not found",
       });
+    }
+
+    // Increment worker tasks_completed or tasks_error
+    if (task.assigned_worker) {
+      if (status === "success") {
+        await incrementWorkerTaskCount(task.assigned_worker);
+      } else if (status === "error") {
+        const { incrementWorkerErrorCount } = await import("../utils/incrementWorkerTaskCount.js");
+        await incrementWorkerErrorCount(task.assigned_worker);
+      }
     }
 
     res.json({
