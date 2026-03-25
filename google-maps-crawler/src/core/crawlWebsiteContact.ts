@@ -111,7 +111,7 @@ export async function crawlWebsiteContact(
     /**
      * 1️⃣ TRY CONTACT PAGE (chỉ thử 1 URL phổ biến nhất)
      */
-    const contactUrl = `${website}/contact`;
+    const contactUrl = `${website.replace(/\/+$/, "")}/contact`;
 
     try {
       console.log(`🔎 Try contact page: ${contactUrl}`);

@@ -80,8 +80,13 @@ export async function extractPlaceFromCard(
 
     const address =
       texts.find((t) =>
-        /\d+.*(Rue|Avenue|Av\.|Boulevard|Bd|Street|Road|St)/i.test(t)
-      ) || null;
+        /\d+.*(Rue|Avenue|Av\.|Boulevard|Bd|Street|Road|St|Đường|đường|Phố|phố|Quận|quận|Phường|phường|Huyện|huyện|Thành phố|TP|Straße|strasse|Calle|Carrer)/i.test(t!)
+      ) ||
+      // Fallback: text dài nhất chứa số (khả năng cao là address)
+      texts
+        .filter((t) => /\d/.test(t!) && t!.length > 10)
+        .sort((a, b) => b!.length - a!.length)[0] ||
+      null;
 
     return {
       name,

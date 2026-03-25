@@ -34,29 +34,51 @@ async function batchCrawlWebsites(
       (async () => {
         let website = place.website;
 
-        // Nếu chưa có website → thử click detail
-        if (!website) {
+        // Nếu chưa có website → mở Google Maps URL của place trong tab riêng
+        if (!website && place.url) {
+          const detailPage = await context.newPage();
           try {
-            const cards = await page.locator('div[role="article"]').all();
-            if (cards[idx]) {
-              await cards[idx].locator("a.hfpxzc").click();
-              await page.waitForSelector(
-                'a[data-item-id="authority"]',
-                { timeout: 4000 }
-              );
-              website = await page
-                .locator('a[data-item-id="authority"]')
-                .first()
-                .getAttribute("href");
+            await detailPage.goto(place.url, {
+              waitUntil: "domcontentloaded",
+              timeout: 15000,
+            });
+            await detailPage.waitForTimeout(1500);
 
-              if (website) results[idx].website = website;
+            // Lấy website từ detail panel
+            const authorityLink = detailPage.locator('a[data-item-id="authority"]').first();
+            if (await authorityLink.count() > 0) {
+              website = await authorityLink.getAttribute("href");
+              if (website) {
+                results[idx].website = website;
+                console.log(`🔗 ${idx + 1}. ${place.name} → website: ${website}`);
+              }
             }
-          } catch {
-            // Cannot get website, skip
+
+            // Bonus: lấy thêm phone, address nếu chưa có
+            if (!results[idx].phone) {
+              const phoneLink = detailPage.locator('[data-item-id^="phone"]').first();
+              if (await phoneLink.count() > 0) {
+                const phoneText = await phoneLink.textContent();
+                if (phoneText) results[idx].phone = phoneText.trim();
+              }
+            }
+
+            if (!results[idx].address) {
+              const addressEl = detailPage.locator('[data-item-id="address"]').first();
+              if (await addressEl.count() > 0) {
+                const addrText = await addressEl.textContent();
+                if (addrText) results[idx].address = addrText.replace(/^[^a-zA-Z0-9À-ỹ]*/, "").trim();
+              }
+            }
+
+          } catch (err: any) {
+            console.log(`⚠️ Detail scan failed: ${place.name} — ${err.message}`);
+          } finally {
+            await detailPage.close();
           }
         }
 
-        // Nếu có website → crawl
+        // Nếu có website → crawl social/contact
         if (website) {
           const webPage = await context.newPage();
           try {

@@ -1,3 +1,4 @@
+import "dotenv/config";
 import { startTaskQueue } from "./core/taskQueue";
 
 console.log("🚀 CRAWL WORKER STARTED");

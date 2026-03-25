@@ -46,7 +46,7 @@ export async function searchKeyword(
   await Promise.race([
     page.waitForSelector('div[role="feed"]', { timeout: 15000 }),
     page.waitForSelector("a.hfpxzc", { timeout: 15000 }),
-    page.waitForSelector('div:has-text("No results")', { timeout: 15000 })
+    page.locator('text=/No results|Không tìm thấy/i').waitFor({ timeout: 15000 }).catch(() => null)
   ]);
 
 }

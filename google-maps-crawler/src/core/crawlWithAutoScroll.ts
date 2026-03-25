@@ -27,6 +27,26 @@ export async function crawlWithAutoScroll(
   while (results.length < limit) {
     console.log(`🔄 Loop | current=${results.length}/${limit}`);
 
+    // 📍 Handle single place redirect (no feed/list)
+    const hasFeed = await page.$('div[role="feed"]');
+    if (!hasFeed) {
+      const hasLink = await page.$("a.hfpxzc");
+      if (!hasLink) {
+        // Có thể là single place detail → extract trực tiếp
+        const detailPanel = await page.$("div.tAiQdd");
+        if (detailPanel) {
+          console.log("📍 Single place detected (no feed) → extracting from detail panel");
+          const { extractPlace } = await import("./extract");
+          const place = await extractPlace(page);
+          if (place?.name) {
+            place.url = page.url();
+            results.push(place);
+          }
+          break;
+        }
+      }
+    }
+
     // ⏳ chờ feed load
     await page.waitForSelector('div[role="feed"]', {
       timeout: 20000,
