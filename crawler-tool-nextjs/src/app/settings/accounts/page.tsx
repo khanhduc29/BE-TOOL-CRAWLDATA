@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import Link from "next/link";
 
 const API = "/api/proxy";
 
@@ -134,6 +135,22 @@ export default function AccountSettingsPage() {
       <div className="tool-header">
         <h1>🔐 Quản lý tài khoản</h1>
         <p>Thêm, sửa, xóa tài khoản & cookie cho các nền tảng crawler</p>
+      </div>
+
+      {/* Settings tabs */}
+      <div style={{ display: "flex", gap: 4, marginBottom: 20, background: "rgba(15,23,42,0.5)", padding: 4, borderRadius: 10, border: "1px solid rgba(255,255,255,0.06)", width: "fit-content" }}>
+        {[
+          { href: "/settings/accounts", label: "🔐 Tài khoản", active: true },
+          { href: "/settings/proxies", label: "🌐 Proxy" },
+          { href: "/settings/workers", label: "🤖 Workers" },
+        ].map((tab) => (
+          <Link key={tab.href} href={tab.href} style={{
+            padding: "8px 16px", borderRadius: 8, fontSize: 13, fontWeight: 600, textDecoration: "none",
+            color: tab.active ? "#fff" : "#94A3B8",
+            background: tab.active ? "linear-gradient(135deg, #6366F1, #8B5CF6)" : "transparent",
+            transition: "all 0.2s",
+          }}>{tab.label}</Link>
+        ))}
       </div>
 
       {/* Message */}

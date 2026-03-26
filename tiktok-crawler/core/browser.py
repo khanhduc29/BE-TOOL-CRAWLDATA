@@ -3,18 +3,27 @@ import time
 import json
 from playwright.async_api import async_playwright
 from core.anti_block import get_random_ua
+from core.proxy_helper import fetch_random_proxy, get_playwright_proxy
 
 
 async def create_browser(headless=True, session_file=None):
     playwright = await async_playwright().start()
 
-    browser = await playwright.chromium.launch(
-        headless=headless,
-        args=[
+    # 🌐 Fetch random proxy from backend
+    proxy_data = fetch_random_proxy()
+    proxy_config = get_playwright_proxy(proxy_data)
+
+    launch_kwargs = {
+        "headless": headless,
+        "args": [
             "--disable-blink-features=AutomationControlled",
             "--no-sandbox",
         ],
-    )
+    }
+    if proxy_config:
+        launch_kwargs["proxy"] = proxy_config
+
+    browser = await playwright.chromium.launch(**launch_kwargs)
 
     # ===== TẠO CONTEXT =====
     random_ua = get_random_ua()

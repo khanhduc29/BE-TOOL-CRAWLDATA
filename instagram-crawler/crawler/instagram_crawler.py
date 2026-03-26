@@ -1,6 +1,7 @@
 import re
 from urllib.parse import urlparse, parse_qs, unquote
 from playwright.sync_api import sync_playwright
+from crawler.proxy_helper import fetch_random_proxy, get_playwright_proxy
 
 
 def clean_number(text):
@@ -83,12 +84,20 @@ def extract_email(text):
 
 def crawl_instagram_profile(url):
 
+    # 🌐 Fetch random proxy
+    proxy_data = fetch_random_proxy()
+    proxy_config = get_playwright_proxy(proxy_data)
+
     with sync_playwright() as p:
 
-        context = p.chromium.launch_persistent_context(
-            user_data_dir="./insta_session",
-            headless=True
-        )
+        launch_kwargs = {
+            "user_data_dir": "./insta_session",
+            "headless": True,
+        }
+        if proxy_config:
+            launch_kwargs["proxy"] = proxy_config
+
+        context = p.chromium.launch_persistent_context(**launch_kwargs)
 
         page = context.new_page()
 
