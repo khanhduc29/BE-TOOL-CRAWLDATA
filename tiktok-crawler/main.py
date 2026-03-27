@@ -23,6 +23,7 @@ from core.logger import setup_logger
 from core.anti_block import random_delay
 from api.tiktok_api import fetch_pending_task, update_task_status
 from dispatch.scan_dispatcher import dispatch_scan
+from core.captcha_solver import handle_captcha_if_present
 
 logger = setup_logger()
 SESSION_FILE = "tiktok_session.json"
@@ -88,6 +89,19 @@ async def main():
                         # ✅ TẠO PAGE MỚI CHO TASK
                         page = await context.new_page()
                         _flog("PAGE CREATED")
+
+                        # 🔒 CAPTCHA CHECK — mở TikTok trước để kiểm tra captcha
+                        logger.info("🔒 Checking for captcha...")
+                        _flog("CAPTCHA CHECK START")
+                        await page.goto("https://www.tiktok.com", timeout=60000, wait_until="domcontentloaded")
+                        await page.wait_for_timeout(3000)
+
+                        captcha_ok = await handle_captcha_if_present(page)
+                        if not captcha_ok:
+                            logger.warning("⚠️ Captcha not solved — continuing anyway, crawl may fail")
+                            _flog("CAPTCHA NOT SOLVED — continue")
+                        else:
+                            _flog("CAPTCHA CHECK OK")
 
                         logger.info("🧠 START CRAWL")
                         _flog("START CRAWL")

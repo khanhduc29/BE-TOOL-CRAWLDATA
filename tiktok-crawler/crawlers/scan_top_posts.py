@@ -5,6 +5,7 @@ import csv
 import os
 import random
 from core.logger import setup_logger
+from core.captcha_solver import handle_captcha_if_present
 
 logger = setup_logger()
 DATA_DIR = "data"
@@ -118,19 +119,38 @@ async def extract_top_videos(page, keyword, limit):
         await page.wait_for_selector("a[href*='/video/']", timeout=15000)
         logger.info("✅ Video links found on page")
     except Exception:
-        # Log page state khi không tìm thấy video
-        page_title = await page.title()
-        page_url = page.url
-        logger.error(f"❌ No video links found! page_title='{page_title}' page_url='{page_url}'")
+        # Có thể là CAPTCHA — thử giải
+        logger.warning("⚠️ No video links found — checking for captcha...")
 
-        # Chụp screenshot để debug
-        try:
-            await page.screenshot(path="debug_tiktok_search.png")
-            logger.info("📸 Screenshot saved: debug_tiktok_search.png")
-        except Exception:
-            pass
+        captcha_solved = await handle_captcha_if_present(page)
+        if captcha_solved:
+            logger.info("🔓 Captcha handled — reloading search page...")
+            await page.goto(url, timeout=60000, wait_until="domcontentloaded")
+            try:
+                await page.wait_for_selector("a[href*='/video/']", timeout=15000)
+                logger.info("✅ Video links found after captcha solve!")
+            except Exception:
+                page_title = await page.title()
+                # Chụp screenshot để debug
+                try:
+                    await page.screenshot(path="debug_tiktok_search.png")
+                    logger.info("📸 Screenshot saved: debug_tiktok_search.png")
+                except Exception:
+                    pass
+                raise Exception(f"No video links found even after captcha solve. Page title: '{page_title}'.")
+        else:
+            page_title = await page.title()
+            page_url = page.url
+            logger.error(f"❌ No video links found! page_title='{page_title}' page_url='{page_url}'")
 
-        raise Exception(f"No video links found on TikTok search. Page title: '{page_title}'. Possible CAPTCHA/login wall.")
+            # Chụp screenshot để debug
+            try:
+                await page.screenshot(path="debug_tiktok_search.png")
+                logger.info("📸 Screenshot saved: debug_tiktok_search.png")
+            except Exception:
+                pass
+
+            raise Exception(f"No video links found on TikTok search. Page title: '{page_title}'. Possible CAPTCHA/login wall.")
 
     results = []
     seen = set()
