@@ -2,6 +2,8 @@ import mongoose from "mongoose";
 
 const ChplayTaskSchema = new mongoose.Schema(
   {
+    userId: { type: mongoose.Schema.Types.ObjectId, ref: "User", index: true },
+
     scan_type: {
       type: String,
       enum: ["search", "reviews"],

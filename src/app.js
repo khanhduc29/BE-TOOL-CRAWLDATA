@@ -23,6 +23,7 @@ import apiKeyRoute from "./routes/apiKey.route.js";
 import proxyRoute from "./routes/proxy.route.js";
 import authRoute from "./routes/auth.route.js";
 import { startStuckTaskRecovery } from "./utils/stuckTaskRecovery.js";
+import { authMiddleware, optionalAuth } from "./middleware/auth.middleware.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -40,21 +41,26 @@ app.get("/", (req, res) => {
   res.send("API is running 🚀");
 });
 
-app.use("/api/tiktok", tiktokRoute);
-app.use("/api/google-map", googleMapRoute);
-app.use("/api/youtube", youtubeRoute);
-app.use("/api/pinterest", pinterestRoute);
-app.use("/api/instagram", instagramRoutes);
-app.use("/api/twitter", twitterRoute);
-app.use("/api/accounts", accountRoute);
+// ===== Public routes (no auth required — used by crawler workers) =====
+app.use("/api/auth", authRoute);
 app.use("/api/workers", workerRoute);
-app.use("/api/chplay", chplayRoute);
-app.use("/api/appstore", appstoreRoute);
+app.use("/api/proxies", proxyRoute);
 app.use("/api/dashboard", dashboardRoute);
 app.use("/api/settings", settingRoute);
 app.use("/api/api-keys", apiKeyRoute);
-app.use("/api/proxies", proxyRoute);
-app.use("/api/auth", authRoute);
+
+// ===== Tool routes (optionalAuth — FE sends token, workers don't) =====
+app.use("/api/tiktok", optionalAuth, tiktokRoute);
+app.use("/api/google-map", optionalAuth, googleMapRoute);
+app.use("/api/youtube", optionalAuth, youtubeRoute);
+app.use("/api/pinterest", optionalAuth, pinterestRoute);
+app.use("/api/instagram", optionalAuth, instagramRoutes);
+app.use("/api/twitter", optionalAuth, twitterRoute);
+app.use("/api/chplay", optionalAuth, chplayRoute);
+app.use("/api/appstore", optionalAuth, appstoreRoute);
+
+// ===== Strictly protected routes (FE only) =====
+app.use("/api/accounts", authMiddleware, accountRoute);
 
 const PORT = process.env.PORT || 3000;
 

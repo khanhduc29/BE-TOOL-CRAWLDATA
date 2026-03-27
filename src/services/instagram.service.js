@@ -14,6 +14,7 @@ export async function createInstagramScan(data) {
 
   const request = await InstagramRequest.create({
     payload: data,
+    userId: data.userId,
   });
 
   const tasks = inputs.map((input) => ({

@@ -10,7 +10,7 @@ import { incrementWorkerTaskCount } from "../utils/incrementWorkerTaskCount.js";
  */
 export async function createYouTubeScanController(req, res) {
   try {
-    const request = await createYouTubeScan(req.body);
+    const request = await createYouTubeScan({ ...req.body, userId: req.user?.id });
 
     return res.json({
       success: true,

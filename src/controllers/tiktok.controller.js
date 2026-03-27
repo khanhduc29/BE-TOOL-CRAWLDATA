@@ -6,7 +6,7 @@ import { incrementWorkerTaskCount } from "../utils/incrementWorkerTaskCount.js";
 
 export async function createTikTokScanController(req, res) {
   try {
-    const request = await createTikTokScan(req.body);
+    const request = await createTikTokScan({ ...req.body, userId: req.user?.id });
     res.json({
       success: true,
       data: request,

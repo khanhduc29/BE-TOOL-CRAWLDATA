@@ -18,6 +18,7 @@ export async function createGoogleMapJob(data) {
     deep_scan_website: data.deep_scan_website,
     deep_scan_reviews: data.deep_scan_reviews,
     review_limit: data.review_limit,
+    userId: data.userId,
   });
 
   // 2️⃣ tách keyword

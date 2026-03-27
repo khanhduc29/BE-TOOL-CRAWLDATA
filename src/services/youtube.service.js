@@ -10,6 +10,7 @@ export async function createYouTubeScan(data) {
     scan_type,
     scan_account: data.scan_account,
     payload: data,
+    userId: data.userId,
   });
 
   let tasks = [];

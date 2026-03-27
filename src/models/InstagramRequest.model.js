@@ -2,6 +2,8 @@ import mongoose from "mongoose";
 
 const InstagramRequestSchema = new mongoose.Schema(
   {
+    userId: { type: mongoose.Schema.Types.ObjectId, ref: "User", index: true },
+
     scan_account: {
       type: String,
       default: null,

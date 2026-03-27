@@ -4,10 +4,11 @@ import GoogleMapJobModel from "../models/GoogleMapJob.model.js";
 import GoogleMapTaskModel from "../models/GoogleMapTask.model.js";
 import { syncRequestStatus } from "../utils/syncRequestStatus.js";
 import { incrementWorkerTaskCount } from "../utils/incrementWorkerTaskCount.js";
+import { getUserFilter } from "../middleware/auth.middleware.js";
 
 export async function createGoogleMapJobController(req, res) {
   try {
-    const job = await createGoogleMapJob(req.body);
+    const job = await createGoogleMapJob({ ...req.body, userId: req.user?.id });
 
     res.json({
       success: true,
@@ -219,7 +220,7 @@ export async function updatePartialGoogleMapTask(req, res) {
 
 export async function getGoogleMapJobs(req, res) {
   try {
-    const jobs = await GoogleMapJobModel.find()
+    const jobs = await GoogleMapJobModel.find(getUserFilter(req))
       .sort({ created_at: -1 })
       .limit(100);
 

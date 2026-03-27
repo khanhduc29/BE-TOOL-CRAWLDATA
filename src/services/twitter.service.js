@@ -10,6 +10,7 @@ export async function createTwitterScan(data) {
     scan_type,
     scan_account: data.scan_account || "default",
     payload: data,
+    userId: data.userId,
   });
 
   let tasks = [];

@@ -6,7 +6,7 @@ import { incrementWorkerTaskCount } from "../utils/incrementWorkerTaskCount.js";
 
 export async function createTwitterScanController(req, res) {
   try {
-    const request = await createTwitterScan(req.body);
+    const request = await createTwitterScan({ ...req.body, userId: req.user?.id });
     res.json({
       success: true,
       data: request,
