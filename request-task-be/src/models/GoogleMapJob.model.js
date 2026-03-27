@@ -2,6 +2,8 @@ import mongoose from "mongoose";
 
 const GoogleMapJobSchema = new mongoose.Schema(
   {
+    userId: { type: mongoose.Schema.Types.ObjectId, ref: "User", index: true },
+
     raw_keywords: {
       type: String, // mỗi dòng 1 keyword
       required: true,

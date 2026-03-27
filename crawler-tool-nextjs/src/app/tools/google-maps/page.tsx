@@ -1,4 +1,6 @@
-"use client";
+﻿"use client";
+
+import { authFetch } from "@/utils/authFetch";
 
 import { useState, useEffect } from "react";
 
@@ -87,7 +89,7 @@ export default function GoogleMapsToolPage() {
   // ===== API =====
   const fetchJobs = async () => {
     try {
-      const res = await fetch(`${API}/google-map/crawl-jobs`);
+      const res = await authFetch(`${API}/google-map/crawl-jobs`);
       const json = await res.json();
       setJobs(json.data || []);
     } catch { /* ignore */ }
@@ -95,7 +97,7 @@ export default function GoogleMapsToolPage() {
 
   const fetchTasks = async (jobId: string) => {
     try {
-      const res = await fetch(`${API}/google-map/crawl-tasks?jobId=${jobId}`);
+      const res = await authFetch(`${API}/google-map/crawl-tasks?jobId=${jobId}`);
       const json = await res.json();
       setTasks(json.data || []);
     } catch { /* ignore */ }
@@ -103,7 +105,7 @@ export default function GoogleMapsToolPage() {
 
   const fetchTaskDetail = async (taskId: string) => {
     try {
-      const res = await fetch(`${API}/google-map/crawl-tasks/${taskId}`);
+      const res = await authFetch(`${API}/google-map/crawl-tasks/${taskId}`);
       const json = await res.json();
       setSelectedTask(json.data);
       setResultPage(1);
@@ -121,7 +123,7 @@ export default function GoogleMapsToolPage() {
       setIsCreating(true);
       setCreateError("");
 
-      const res = await fetch(`${API}/google-map/scan`, {
+      const res = await authFetch(`${API}/google-map/scan`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

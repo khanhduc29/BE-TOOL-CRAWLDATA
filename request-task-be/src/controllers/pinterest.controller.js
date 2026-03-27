@@ -15,7 +15,7 @@ import { syncRequestStatus } from "../utils/syncRequestStatus.js";
  */
 export async function createScan(req, res) {
   try {
-    const request = await createPinterestScan(req.body);
+    const request = await createPinterestScan({ ...req.body, userId: req.user?.id });
 
     res.json({
       success: true,

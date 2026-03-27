@@ -22,7 +22,7 @@ export async function createAppstoreScan(req, res) {
       return res.status(400).json({ success: false, message: "scan_type must be search or reviews" });
     }
 
-    const task = await AppstoreTask.create({ scan_type, input, status: "pending" });
+    const task = await AppstoreTask.create({ scan_type, input, status: "pending", userId: req.user?.id });
     res.json({ success: true, data: task });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });

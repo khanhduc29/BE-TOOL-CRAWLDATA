@@ -18,9 +18,19 @@ async function proxyRequest(
   const url = `${BACKEND_URL}/api/${apiPath}${search}`;
 
   try {
+    const headers: Record<string, string> = {
+      "Content-Type": "application/json",
+    };
+
+    // Forward auth header from client → backend
+    const authHeader = request.headers.get("Authorization");
+    if (authHeader) {
+      headers["Authorization"] = authHeader;
+    }
+
     const fetchOptions: RequestInit = {
       method,
-      headers: { "Content-Type": "application/json" },
+      headers,
       signal: AbortSignal.timeout(60000),
       cache: "no-store",
     };

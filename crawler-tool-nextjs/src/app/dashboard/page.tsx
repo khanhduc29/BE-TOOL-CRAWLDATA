@@ -1,4 +1,6 @@
-"use client";
+﻿"use client";
+
+import { authFetch } from "@/utils/authFetch";
 
 import { useState, useEffect, useCallback } from "react";
 
@@ -36,10 +38,10 @@ export default function DashboardPage() {
   const fetchAll = useCallback(async () => {
     try {
       const [sRes, wRes, tRes, lRes] = await Promise.all([
-        fetch(`${API}/dashboard/stats`).then((r) => r.json()).catch(() => null),
-        fetch(`${API}/dashboard/workers`).then((r) => r.json()).catch(() => null),
-        fetch(`${API}/dashboard/throughput`).then((r) => r.json()).catch(() => null),
-        fetch(`${API}/dashboard/logs?limit=50`).then((r) => r.json()).catch(() => null),
+        authFetch(`${API}/dashboard/stats`).then((r) => r.json()).catch(() => null),
+        authFetch(`${API}/dashboard/workers`).then((r) => r.json()).catch(() => null),
+        authFetch(`${API}/dashboard/throughput`).then((r) => r.json()).catch(() => null),
+        authFetch(`${API}/dashboard/logs?limit=50`).then((r) => r.json()).catch(() => null),
       ]);
 
       if (sRes?.success) setStats(sRes.data);

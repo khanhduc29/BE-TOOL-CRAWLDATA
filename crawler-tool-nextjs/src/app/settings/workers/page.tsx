@@ -1,7 +1,10 @@
 "use client";
 
+import { authFetch } from "@/utils/authFetch";
+
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
+import { useAuth } from "@/context/AuthContext";
 
 const API = "/api/proxy";
 
@@ -31,6 +34,7 @@ type Worker = {
 };
 
 export default function WorkersSettingsPage() {
+  const { user } = useAuth();
   const [workers, setWorkers] = useState<Worker[]>([]);
   const [filter, setFilter] = useState("");
   const [msg, setMsg] = useState("");
@@ -53,7 +57,7 @@ export default function WorkersSettingsPage() {
     try {
       const params = new URLSearchParams();
       if (filter) params.set("tool", filter);
-      const res = await fetch(`${API}/workers/list?${params}`);
+      const res = await authFetch(`${API}/workers/list?${params}`);
       const json = await res.json();
       if (json.success) setWorkers(json.data || []);
     } catch { /* ignore */ }
@@ -71,7 +75,7 @@ export default function WorkersSettingsPage() {
     if (!formWorkerId.trim()) { flash("Worker ID là bắt buộc", "err"); return; }
     setRegistering(true);
     try {
-      const res = await fetch(`${API}/workers/register`, {
+      const res = await authFetch(`${API}/workers/register`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -96,7 +100,7 @@ export default function WorkersSettingsPage() {
   const handleDelete = async (workerId: string) => {
     if (!confirm(`Xóa worker "${workerId}"?`)) return;
     try {
-      const res = await fetch(`${API}/workers/${workerId}`, { method: "DELETE" });
+      const res = await authFetch(`${API}/workers/${workerId}`, { method: "DELETE" });
       const json = await res.json();
       if (json.success) { flash("🗑 Đã xóa worker!"); fetchWorkers(); }
       else flash(`❌ ${json.message}`, "err");
@@ -137,6 +141,7 @@ export default function WorkersSettingsPage() {
           { href: "/settings/accounts", label: "🔐 Tài khoản" },
           { href: "/settings/proxies", label: "🌐 Proxy" },
           { href: "/settings/workers", label: "🤖 Workers", active: true },
+          ...(user?.role === "admin" ? [{ href: "/settings/users", label: "👥 Users" }] : []),
         ].map((tab) => (
           <Link key={tab.href} href={tab.href} style={{
             padding: "8px 16px", borderRadius: 8, fontSize: 13, fontWeight: 600, textDecoration: "none",

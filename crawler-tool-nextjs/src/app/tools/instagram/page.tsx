@@ -1,4 +1,6 @@
-"use client";
+﻿"use client";
+
+import { authFetch } from "@/utils/authFetch";
 
 import { useState, useEffect, useRef, useCallback } from "react";
 
@@ -80,7 +82,7 @@ export default function InstagramToolPage() {
   // ===== API =====
   const fetchHistory = useCallback(async () => {
     try {
-      const res = await fetch(`${API}/instagram/tasks?limit=200`);
+      const res = await authFetch(`${API}/instagram/tasks?limit=200`);
       const data = await res.json();
       if (data.success) setHistory(data.data || []);
     } catch { /* ignore */ }
@@ -90,7 +92,7 @@ export default function InstagramToolPage() {
     stopPolling();
     pollingRef.current = setInterval(async () => {
       try {
-        const res = await fetch(`${API}/instagram/tasks?request_id=${requestId}`);
+        const res = await authFetch(`${API}/instagram/tasks?request_id=${requestId}`);
         const data = await res.json();
         if (!data.success) return;
 
@@ -122,7 +124,7 @@ export default function InstagramToolPage() {
     // Restore state from latest tasks
     (async () => {
       try {
-        const res = await fetch(`${API}/instagram/tasks?limit=50`);
+        const res = await authFetch(`${API}/instagram/tasks?limit=50`);
         const data = await res.json();
         if (!data.success || !data.data?.length) return;
         const tasks = data.data;
@@ -151,7 +153,7 @@ export default function InstagramToolPage() {
       setProgress({ total: lines.length, done: 0, success: 0, error: 0 });
 
       const inputs = lines.map(url => ({ url, scan_website: scanWebsite }));
-      const res = await fetch(`${API}/instagram/create-scan`, {
+      const res = await authFetch(`${API}/instagram/create-scan`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ inputs }),

@@ -24,7 +24,7 @@ export async function createChplayScan(req, res) {
     }
 
     // Create task as pending
-    const task = await ChplayTask.create({ scan_type, input, status: "pending" });
+    const task = await ChplayTask.create({ scan_type, input, status: "pending", userId: req.user?.id });
 
     // Return immediately, task will be processed by worker or inline
     res.json({ success: true, data: task });

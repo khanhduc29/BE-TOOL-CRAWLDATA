@@ -2,6 +2,8 @@ import mongoose from "mongoose";
 
 const TikTokRequestSchema = new mongoose.Schema(
   {
+    userId: { type: mongoose.Schema.Types.ObjectId, ref: "User", index: true },
+
     scan_type: {
       type: String,
       enum: ["relations", "top_posts", "users", "video_comments"],

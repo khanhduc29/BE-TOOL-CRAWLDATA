@@ -2,6 +2,8 @@ import mongoose from "mongoose";
 
 const SocialAccountSchema = new mongoose.Schema(
   {
+    userId: { type: mongoose.Schema.Types.ObjectId, ref: "User", index: true },
+
     platform: {
       type: String,
       enum: ["twitter", "tiktok", "instagram", "youtube", "pinterest", "facebook"],

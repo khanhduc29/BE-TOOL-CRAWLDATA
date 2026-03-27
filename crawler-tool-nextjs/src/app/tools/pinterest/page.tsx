@@ -1,4 +1,6 @@
-"use client";
+﻿"use client";
+
+import { authFetch } from "@/utils/authFetch";
 
 import { useState, useEffect, useRef, useCallback } from "react";
 
@@ -52,7 +54,7 @@ export default function PinterestToolPage() {
 
   const fetchHistory = useCallback(async () => {
     try {
-      const res = await fetch(`${API}/pinterest/tasks?limit=200`);
+      const res = await authFetch(`${API}/pinterest/tasks?limit=200`);
       const data = await res.json();
       if (data.success) setHistory(data.data || []);
     } catch { /* ignore */ }
@@ -62,7 +64,7 @@ export default function PinterestToolPage() {
     stopPolling();
     pollingRef.current = setInterval(async () => {
       try {
-        const res = await fetch(`${API}/pinterest/tasks?request_id=${requestId}`);
+        const res = await authFetch(`${API}/pinterest/tasks?request_id=${requestId}`);
         const data = await res.json();
         if (!data.success || !data.data?.length) return;
         const task = data.data[0];
@@ -90,7 +92,7 @@ export default function PinterestToolPage() {
     fetchHistory();
     (async () => {
       try {
-        const res = await fetch(`${API}/pinterest/tasks/success?limit=1`);
+        const res = await authFetch(`${API}/pinterest/tasks/success?limit=1`);
         const data = await res.json();
         if (data.success && data.data?.length > 0) {
           const task = data.data[0];
@@ -118,7 +120,7 @@ export default function PinterestToolPage() {
 
     try {
       stopPolling(); setLoading(true); setResults([]); setTaskStatus("pending"); setErrorMsg("");
-      const res = await fetch(`${API}/pinterest/scan`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+      const res = await authFetch(`${API}/pinterest/scan`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
       const data = await res.json();
       if (!data.success) { setTaskStatus("error"); setErrorMsg(data.message); setLoading(false); return; }
       setTaskStatus("running");

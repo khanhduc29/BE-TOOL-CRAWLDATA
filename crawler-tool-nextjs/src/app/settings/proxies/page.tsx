@@ -1,7 +1,10 @@
 "use client";
 
+import { authFetch } from "@/utils/authFetch";
+
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
+import { useAuth } from "@/context/AuthContext";
 
 const API = "/api/proxy";
 
@@ -46,6 +49,7 @@ const emptyForm = {
 };
 
 export default function ProxySettingsPage() {
+  const { user } = useAuth();
   const [proxies, setProxies] = useState<Proxy[]>([]);
   const [form, setForm] = useState({ ...emptyForm });
   const [editId, setEditId] = useState<string | null>(null);
@@ -70,7 +74,7 @@ export default function ProxySettingsPage() {
       const url = filterStatus
         ? `${API}/proxies?status=${filterStatus}`
         : `${API}/proxies`;
-      const res = await fetch(url);
+      const res = await authFetch(url);
       const json = await res.json();
       if (json.success) setProxies(json.data);
     } catch {
@@ -97,7 +101,7 @@ export default function ProxySettingsPage() {
       const body = { ...form, port: Number(form.port) };
       if (body.password === "••••••••") delete (body as any).password;
 
-      const res = await fetch(url, {
+      const res = await authFetch(url, {
         method,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
@@ -153,7 +157,7 @@ export default function ProxySettingsPage() {
 
     setLoading(true);
     try {
-      const res = await fetch(`${API}/proxies`, {
+      const res = await authFetch(`${API}/proxies`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ proxies: parsedProxies }),
@@ -196,7 +200,7 @@ export default function ProxySettingsPage() {
   const handleDelete = async (id: string) => {
     if (!confirm("Xóa proxy này?")) return;
     try {
-      const res = await fetch(`${API}/proxies/${id}`, { method: "DELETE" });
+      const res = await authFetch(`${API}/proxies/${id}`, { method: "DELETE" });
       const json = await res.json();
       if (json.success) {
         flash("🗑 Đã xóa!");
@@ -212,7 +216,7 @@ export default function ProxySettingsPage() {
     if (selectedIds.size === 0) return;
     if (!confirm(`Xóa ${selectedIds.size} proxy đã chọn?`)) return;
     try {
-      const res = await fetch(`${API}/proxies/bulk-delete`, {
+      const res = await authFetch(`${API}/proxies/bulk-delete`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ids: Array.from(selectedIds) }),
@@ -232,7 +236,7 @@ export default function ProxySettingsPage() {
   const handleCheck = async (id: string) => {
     setCheckingId(id);
     try {
-      const res = await fetch(`${API}/proxies/check/${id}`, { method: "POST" });
+      const res = await authFetch(`${API}/proxies/check/${id}`, { method: "POST" });
       const json = await res.json();
       if (json.success) {
         flash(
@@ -257,7 +261,7 @@ export default function ProxySettingsPage() {
     for (const p of proxies) {
       setCheckingId(p._id);
       try {
-        const res = await fetch(`${API}/proxies/check/${p._id}`, {
+        const res = await authFetch(`${API}/proxies/check/${p._id}`, {
           method: "POST",
         });
         const json = await res.json();
@@ -324,6 +328,7 @@ export default function ProxySettingsPage() {
           { href: "/settings/accounts", label: "🔐 Tài khoản" },
           { href: "/settings/proxies", label: "🌐 Proxy", active: true },
           { href: "/settings/workers", label: "🤖 Workers" },
+          ...(user?.role === "admin" ? [{ href: "/settings/users", label: "👥 Users" }] : []),
         ].map((tab) => (
           <Link
             key={tab.href}

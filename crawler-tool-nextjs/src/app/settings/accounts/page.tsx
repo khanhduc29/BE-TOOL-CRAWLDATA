@@ -1,7 +1,10 @@
 "use client";
 
+import { authFetch } from "@/utils/authFetch";
+
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
+import { useAuth } from "@/context/AuthContext";
 
 const API = "/api/proxy";
 
@@ -48,6 +51,7 @@ const emptyForm = {
 };
 
 export default function AccountSettingsPage() {
+  const { user } = useAuth();
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [form, setForm] = useState({ ...emptyForm });
   const [editId, setEditId] = useState<string | null>(null);
@@ -67,7 +71,7 @@ export default function AccountSettingsPage() {
   const fetchAccounts = useCallback(async () => {
     try {
       const url = filter ? `${API}/accounts?platform=${filter}` : `${API}/accounts`;
-      const res = await fetch(url);
+      const res = await authFetch(url);
       const json = await res.json();
       if (json.success) setAccounts(json.data);
     } catch { /* ignore */ }
@@ -86,7 +90,7 @@ export default function AccountSettingsPage() {
       if (body.password === "••••••••") delete (body as any).password;
       if (body.cookies === "••••set••••") delete (body as any).cookies;
 
-      const res = await fetch(url, { method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+      const res = await authFetch(url, { method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
       const json = await res.json();
       if (json.success) {
         flash(editId ? "✅ Cập nhật thành công!" : "✅ Thêm tài khoản thành công!");
@@ -118,7 +122,7 @@ export default function AccountSettingsPage() {
   const handleDelete = async (id: string) => {
     if (!confirm("Xóa tài khoản này?")) return;
     try {
-      const res = await fetch(`${API}/accounts/${id}`, { method: "DELETE" });
+      const res = await authFetch(`${API}/accounts/${id}`, { method: "DELETE" });
       const json = await res.json();
       if (json.success) { flash("🗑 Đã xóa!"); fetchAccounts(); }
     } catch { flash("❌ Lỗi xóa", "err"); }
@@ -143,6 +147,7 @@ export default function AccountSettingsPage() {
           { href: "/settings/accounts", label: "🔐 Tài khoản", active: true },
           { href: "/settings/proxies", label: "🌐 Proxy" },
           { href: "/settings/workers", label: "🤖 Workers" },
+          ...(user?.role === "admin" ? [{ href: "/settings/users", label: "👥 Users" }] : []),
         ].map((tab) => (
           <Link key={tab.href} href={tab.href} style={{
             padding: "8px 16px", borderRadius: 8, fontSize: 13, fontWeight: 600, textDecoration: "none",

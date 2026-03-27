@@ -1,4 +1,5 @@
 import SocialAccount from "../models/SocialAccount.model.js";
+import { getUserFilter } from "../middleware/auth.middleware.js";
 
 /**
  * GET all accounts (optionally filter by platform)
@@ -7,7 +8,7 @@ import SocialAccount from "../models/SocialAccount.model.js";
 export async function getAllAccounts(req, res) {
   try {
     const { platform } = req.query;
-    const query = {};
+    const query = { ...getUserFilter(req) };
     if (platform) query.platform = platform;
 
     const accounts = await SocialAccount.find(query)
@@ -50,6 +51,7 @@ export async function createAccount(req, res) {
       label: label || "",
       notes: notes || "",
       cookies: cookies || "",
+      userId: req.user?.id,
     });
 
     res.json({ success: true, data: { ...account.toObject(), password: "••••••••", cookies: cookies ? "••••set••••" : "" } });

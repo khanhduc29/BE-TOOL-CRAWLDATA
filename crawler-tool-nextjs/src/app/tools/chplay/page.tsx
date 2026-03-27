@@ -1,4 +1,6 @@
-"use client";
+﻿"use client";
+
+import { authFetch } from "@/utils/authFetch";
 
 import { useState, useEffect, useCallback, useRef } from "react";
 
@@ -74,7 +76,7 @@ export default function CHPlayToolPage() {
 
   const fetchHistory = useCallback(async () => {
     try {
-      const res = await fetch(`${API_BE}/chplay/tasks?limit=100`);
+      const res = await authFetch(`${API_BE}/chplay/tasks?limit=100`);
       if (res.ok) { const j = await res.json(); if (j.success) setHistory(j.data || []); }
     } catch { /* ignore */ }
   }, []);
@@ -85,7 +87,7 @@ export default function CHPlayToolPage() {
     if (!keyword.trim()) return;
     setLoading(true);
     try {
-      const res = await fetch("/api/chplay/search", {
+      const res = await authFetch("/api/chplay/search", {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ keyword, country, limit }),
       });
@@ -100,7 +102,7 @@ export default function CHPlayToolPage() {
     if (!targetId.trim()) return;
     setLoading(true); setTab("reviews"); setReviewAppId(targetId);
     try {
-      const res = await fetch("/api/chplay/reviews", {
+      const res = await authFetch("/api/chplay/reviews", {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ app_id: targetId, country, count: reviewCount }),
       });
