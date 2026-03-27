@@ -36,7 +36,7 @@ export async function searchKeyword(
 
   await page.goto(url, {
     waitUntil: "domcontentloaded",
-    timeout: 30000,
+    timeout: 60000,
   });
 
   // đợi maps render

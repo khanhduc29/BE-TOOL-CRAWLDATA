@@ -184,6 +184,7 @@ export async function processTask(task: CrawlTask) {
     if (task.deep_scan_reviews && results.length > 0) {
 
       console.log(`⭐ Deep scan reviews ENABLED | ${results.length} places | concurrency=${REVIEW_CONCURRENCY}`);
+      console.log(`⭐ review_filter_stars:`, task.review_filter_stars, `| review_limit:`, task.review_limit);
 
       for (let i = 0; i < results.length; i += REVIEW_CONCURRENCY) {
         checkTimeout();
@@ -201,7 +202,8 @@ export async function processTask(task: CrawlTask) {
               results[idx].reviews = await crawlReviews(
                 reviewPage,
                 results[idx].url!,
-                task.review_limit || 20
+                task.review_limit || 20,
+                task.review_filter_stars || []
               );
               console.log(`⭐ ${idx + 1}/${results.length} ${results[idx].name}: ${results[idx].reviews?.length || 0} reviews`);
             } catch (err: any) {

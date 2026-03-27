@@ -2,6 +2,7 @@ import { chromium, BrowserContext, Browser } from "playwright";
 import { fetchRandomProxy, getPlaywrightProxy } from "../utils/proxyHelper";
 
 let currentBrowser: Browser | null = null;
+let currentProxyServer: string | undefined = undefined;
 
 /**
  * Tạo browser context mới (hỗ trợ parallel)
@@ -21,11 +22,18 @@ export async function createBrowser(): Promise<BrowserContext> {
 
     for (let i = 1; i <= MAX_RETRY; i++) {
       try {
-        console.log(`🌐 Launch browser (attempt ${i})`);
+        // Lần 1-2: thử với proxy, lần 3: không proxy
+        const useProxy = proxyConfig && i <= 2;
+
+        if (useProxy) {
+          console.log(`🌐 Launch browser with proxy (attempt ${i})`);
+        } else {
+          console.log(`🌐 Launch browser WITHOUT proxy (attempt ${i})`);
+        }
 
         currentBrowser = await chromium.launch({
           headless: false,
-          proxy: proxyConfig,
+          ...(useProxy ? { proxy: proxyConfig } : {}),
           args: [
             "--disable-blink-features=AutomationControlled",
             "--no-sandbox",
@@ -34,6 +42,26 @@ export async function createBrowser(): Promise<BrowserContext> {
             "--disable-extensions",
           ],
         });
+
+        currentProxyServer = useProxy ? proxyConfig!.server : undefined;
+        console.log(`✅ Browser launched${currentProxyServer ? ` (proxy: ${currentProxyServer})` : " (no proxy)"}`);
+
+        // Test: thử navigate nhanh để verify proxy hoạt động
+        if (useProxy) {
+          const testCtx = await currentBrowser.newContext();
+          const testPage = await testCtx.newPage();
+          try {
+            await testPage.goto("https://www.google.com", { timeout: 15000, waitUntil: "domcontentloaded" });
+            console.log(`✅ Proxy test OK`);
+            await testCtx.close();
+          } catch (proxyErr: any) {
+            console.log(`⚠️ Proxy test FAILED: ${proxyErr.message} — will retry without proxy`);
+            await testCtx.close();
+            await currentBrowser.close();
+            currentBrowser = null;
+            continue; // Retry → next attempt sẽ không dùng proxy
+          }
+        }
 
         break;
 
@@ -73,4 +101,5 @@ export async function closeBrowser() {
   }
 
   currentBrowser = null;
+  currentProxyServer = undefined;
 }

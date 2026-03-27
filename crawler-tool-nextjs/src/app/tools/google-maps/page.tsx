@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { authFetch } from "@/utils/authFetch";
 
@@ -63,6 +63,7 @@ export default function GoogleMapsToolPage() {
   const [deepScanWebsite, setDeepScanWebsite] = useState(true);
   const [deepScanReviews, setDeepScanReviews] = useState(false);
   const [reviewLimit, setReviewLimit] = useState(20);
+  const [reviewFilterStars, setReviewFilterStars] = useState<number[]>([]);
   const [isCreating, setIsCreating] = useState(false);
   const [createError, setCreateError] = useState("");
 
@@ -136,6 +137,7 @@ export default function GoogleMapsToolPage() {
           deep_scan_website: deepScanWebsite,
           deep_scan_reviews: deepScanReviews,
           review_limit: deepScanReviews ? reviewLimit : 0,
+          review_filter_stars: deepScanReviews ? reviewFilterStars : [],
         }),
       });
 
@@ -291,6 +293,53 @@ export default function GoogleMapsToolPage() {
               </div>
             )}
           </div>
+
+          {deepScanReviews && (
+            <div className="form-group" style={{ marginTop: 4 }}>
+              <label>Lọc theo số sao <span style={{ color: "#64748B", fontSize: 12, fontWeight: 400 }}>(bỏ trống = lấy tất cả)</span></label>
+              <div style={{ display: "flex", gap: 8, marginTop: 6 }}>
+                {[1, 2, 3, 4, 5].map((star) => (
+                  <label
+                    key={star}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 4,
+                      padding: "6px 14px",
+                      borderRadius: 8,
+                      cursor: "pointer",
+                      fontSize: 14,
+                      fontWeight: 600,
+                      border: reviewFilterStars.includes(star)
+                        ? "2px solid #FBBF24"
+                        : "2px solid rgba(255,255,255,0.08)",
+                      background: reviewFilterStars.includes(star)
+                        ? "rgba(251,191,36,0.15)"
+                        : "rgba(15,23,42,0.5)",
+                      color: reviewFilterStars.includes(star)
+                        ? "#FBBF24"
+                        : "#94A3B8",
+                      transition: "all 0.15s ease",
+                    }}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={reviewFilterStars.includes(star)}
+                      onChange={(e) => {
+                        if (e.target.checked) {
+                          setReviewFilterStars([...reviewFilterStars, star].sort());
+                        } else {
+                          setReviewFilterStars(reviewFilterStars.filter((s) => s !== star));
+                        }
+                      }}
+                      style={{ display: "none" }}
+                    />
+                    {"⭐".repeat(star)} {star}
+                  </label>
+                ))}
+              </div>
+            </div>
+          )}
 
           <button className="btn-submit" onClick={createJob} disabled={isCreating}>
             {isCreating ? "⏳ Đang tạo job..." : "🔍 Bắt đầu quét"}

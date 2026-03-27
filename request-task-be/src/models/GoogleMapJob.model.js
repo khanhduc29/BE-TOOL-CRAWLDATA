@@ -49,6 +49,11 @@ const GoogleMapJobSchema = new mongoose.Schema(
       default: 20,
     },
 
+    review_filter_stars: {
+      type: [Number],
+      default: [],
+    },
+
     status: {
       type: String,
       enum: ["pending", "processing", "success", "error", "cancel"],
