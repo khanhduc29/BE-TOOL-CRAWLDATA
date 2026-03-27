@@ -147,6 +147,51 @@ export async function getMe(req, res) {
   }
 }
 
+// =================== SELF-UPDATE PROFILE ===================
+
+/**
+ * PUT /api/auth/me — Update own profile (any authenticated user)
+ */
+export async function updateProfile(req, res) {
+  try {
+    const { name, email, currentPassword, newPassword } = req.body;
+    const update = {};
+
+    if (name) update.name = name;
+    if (email) update.email = email.toLowerCase();
+
+    // Password change requires current password verification
+    if (newPassword) {
+      if (!currentPassword) {
+        return res.status(400).json({ success: false, message: "Vui lòng nhập mật khẩu hiện tại" });
+      }
+
+      const user = await User.findById(req.user.id);
+      const isMatch = await bcrypt.compare(currentPassword, user.password);
+      if (!isMatch) {
+        return res.status(400).json({ success: false, message: "Mật khẩu hiện tại không đúng" });
+      }
+
+      if (newPassword.length < 6) {
+        return res.status(400).json({ success: false, message: "Mật khẩu mới phải có ít nhất 6 ký tự" });
+      }
+
+      const salt = await bcrypt.genSalt(10);
+      update.password = await bcrypt.hash(newPassword, salt);
+    }
+
+    const updatedUser = await User.findByIdAndUpdate(
+      req.user.id,
+      update,
+      { new: true }
+    ).select("-password").lean();
+
+    res.json({ success: true, data: updatedUser });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+}
+
 // =================== ADMIN ENDPOINTS ===================
 
 /**
