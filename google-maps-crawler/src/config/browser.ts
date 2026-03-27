@@ -1,4 +1,5 @@
 import { chromium, BrowserContext, Browser } from "playwright";
+import { fetchRandomProxy, getPlaywrightProxy } from "../utils/proxyHelper";
 
 let currentBrowser: Browser | null = null;
 
@@ -12,6 +13,10 @@ export async function createBrowser(): Promise<BrowserContext> {
   // Nếu chưa có browser → khởi tạo
   if (!currentBrowser || !currentBrowser.isConnected()) {
 
+    // 🌐 Fetch random proxy from backend
+    const proxyData = await fetchRandomProxy();
+    const proxyConfig = getPlaywrightProxy(proxyData);
+
     const MAX_RETRY = 3;
 
     for (let i = 1; i <= MAX_RETRY; i++) {
@@ -20,6 +25,7 @@ export async function createBrowser(): Promise<BrowserContext> {
 
         currentBrowser = await chromium.launch({
           headless: false,
+          proxy: proxyConfig,
           args: [
             "--disable-blink-features=AutomationControlled",
             "--no-sandbox",
