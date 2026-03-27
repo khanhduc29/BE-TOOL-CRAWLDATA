@@ -18,6 +18,7 @@ export async function createGoogleMapJob(data) {
     deep_scan_website: data.deep_scan_website,
     deep_scan_reviews: data.deep_scan_reviews,
     review_limit: data.review_limit,
+    review_filter_stars: data.review_filter_stars || [],
     userId: data.userId,
   });
 
@@ -50,6 +51,7 @@ export async function createGoogleMapJob(data) {
     deep_scan_website: data.deep_scan_website,
     deep_scan_reviews: data.deep_scan_reviews,
     review_limit: data.review_limit,
+    review_filter_stars: data.review_filter_stars || [],
   }));
 
   // 4️⃣ tạo task

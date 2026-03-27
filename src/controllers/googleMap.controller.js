@@ -8,6 +8,11 @@ import { getUserFilter } from "../middleware/auth.middleware.js";
 
 export async function createGoogleMapJobController(req, res) {
   try {
+    console.log(`[GoogleMap] createJob body:`, {
+      deep_scan_reviews: req.body.deep_scan_reviews,
+      review_limit: req.body.review_limit,
+      review_filter_stars: req.body.review_filter_stars,
+    });
     const job = await createGoogleMapJob({ ...req.body, userId: req.user?.id });
 
     res.json({
