@@ -21,6 +21,7 @@ import dashboardRoute from "./routes/dashboard.route.js";
 import settingRoute from "./routes/setting.route.js";
 import apiKeyRoute from "./routes/apiKey.route.js";
 import proxyRoute from "./routes/proxy.route.js";
+import authRoute from "./routes/auth.route.js";
 import { startStuckTaskRecovery } from "./utils/stuckTaskRecovery.js";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -53,6 +54,7 @@ app.use("/api/dashboard", dashboardRoute);
 app.use("/api/settings", settingRoute);
 app.use("/api/api-keys", apiKeyRoute);
 app.use("/api/proxies", proxyRoute);
+app.use("/api/auth", authRoute);
 
 const PORT = process.env.PORT || 3000;
 
