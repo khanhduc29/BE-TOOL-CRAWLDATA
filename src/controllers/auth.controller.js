@@ -146,3 +146,123 @@ export async function getMe(req, res) {
     res.status(500).json({ success: false, message: err.message });
   }
 }
+
+// =================== ADMIN ENDPOINTS ===================
+
+/**
+ * Helper: check if user is admin
+ */
+function requireAdmin(req, res) {
+  if (req.user?.role !== "admin") {
+    res.status(403).json({ success: false, message: "Chỉ admin mới có quyền truy cập" });
+    return false;
+  }
+  return true;
+}
+
+/**
+ * GET /api/auth/users — List all users (admin only)
+ */
+export async function getAllUsers(req, res) {
+  try {
+    if (!requireAdmin(req, res)) return;
+
+    const users = await User.find()
+      .select("-password")
+      .sort({ createdAt: -1 })
+      .lean();
+
+    res.json({ success: true, data: users });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+}
+
+/**
+ * PUT /api/auth/users/:id/role — Update user role (admin only)
+ */
+export async function updateUserRole(req, res) {
+  try {
+    if (!requireAdmin(req, res)) return;
+
+    const { role } = req.body;
+    if (!["admin", "user"].includes(role)) {
+      return res.status(400).json({ success: false, message: "Role phải là admin hoặc user" });
+    }
+
+    // Prevent self-demotion
+    if (req.params.id === req.user.id && role !== "admin") {
+      return res.status(400).json({ success: false, message: "Không thể tự hạ quyền admin của mình" });
+    }
+
+    const user = await User.findByIdAndUpdate(
+      req.params.id,
+      { role },
+      { new: true }
+    ).select("-password");
+
+    if (!user) {
+      return res.status(404).json({ success: false, message: "User không tồn tại" });
+    }
+
+    res.json({ success: true, data: user });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+}
+
+/**
+ * DELETE /api/auth/users/:id — Delete user (admin only)
+ */
+export async function deleteUser(req, res) {
+  try {
+    if (!requireAdmin(req, res)) return;
+
+    // Prevent self-deletion
+    if (req.params.id === req.user.id) {
+      return res.status(400).json({ success: false, message: "Không thể xóa chính mình" });
+    }
+
+    const user = await User.findByIdAndDelete(req.params.id);
+    if (!user) {
+      return res.status(404).json({ success: false, message: "User không tồn tại" });
+    }
+
+    res.json({ success: true, message: "Đã xóa user" });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+}
+
+/**
+ * PUT /api/auth/users/:id — Update user info (admin only)
+ */
+export async function updateUser(req, res) {
+  try {
+    if (!requireAdmin(req, res)) return;
+
+    const { name, email, password } = req.body;
+    const update = {};
+    if (name) update.name = name;
+    if (email) update.email = email.toLowerCase();
+    if (password) {
+      const salt = await bcrypt.genSalt(10);
+      update.password = await bcrypt.hash(password, salt);
+    }
+
+    const user = await User.findByIdAndUpdate(
+      req.params.id,
+      update,
+      { new: true }
+    ).select("-password");
+
+    if (!user) {
+      return res.status(404).json({ success: false, message: "User không tồn tại" });
+    }
+
+    res.json({ success: true, data: user });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+}
+
