@@ -22,6 +22,7 @@ import settingRoute from "./routes/setting.route.js";
 import apiKeyRoute from "./routes/apiKey.route.js";
 import proxyRoute from "./routes/proxy.route.js";
 import authRoute from "./routes/auth.route.js";
+import activityRoute from "./routes/activity.route.js";
 import { startStuckTaskRecovery } from "./utils/stuckTaskRecovery.js";
 import { authMiddleware, optionalAuth } from "./middleware/auth.middleware.js";
 
@@ -61,6 +62,7 @@ app.use("/api/appstore", optionalAuth, appstoreRoute);
 
 // ===== Strictly protected routes (FE only) =====
 app.use("/api/accounts", authMiddleware, accountRoute);
+app.use("/api/activity", authMiddleware, activityRoute);
 
 const PORT = process.env.PORT || 3000;
 
